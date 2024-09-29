@@ -71,7 +71,7 @@ void print_error(char *error_type, size_t line_number){
   exit(1);
 }
 
-Node *parse_expression(Token *current_token, Node *current_node){
+Node *parse_expression(Token *current_token){
   Node *expr_node = malloc(sizeof(Node));
   expr_node = init_node(expr_node, current_token->value, current_token->type);
   current_token++;
@@ -149,7 +149,7 @@ Token *generate_operation_nodes(Token *current_token, Node *current_node){
   return current_token;
 }
 
-Node *handle_exit_syscall(Node *root, Token *current_token, Node *current){
+Node *handle_exit_syscall(Token *current_token, Node *current){
     Node *exit_node = malloc(sizeof(Node));
     exit_node = init_node(exit_node, current_token->value, EXIT);
     current->right = exit_node;
@@ -556,7 +556,7 @@ Node *parser(Token *tokens){
         } else if(token_type == WRITE){
           //handle write creation
         } else if(token_type == EXIT){
-          current = handle_exit_syscall(root, current_token, current);
+          current = handle_exit_syscall(current_token, current);
         }
         break;
       case OPEN_CURLY:
@@ -605,7 +605,7 @@ Node *parser(Token *tokens){
         current_token--;
         if(token_type == SEMICOLON || token_type == OPEN_CURLY || token_type == CLOSE_CURLY){
           current_token++;
-          // handle create variable reusage
+          current = create_variable_reusage(current_token, current);
         } else {
           current_token++;
         }
