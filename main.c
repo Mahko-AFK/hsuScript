@@ -5,6 +5,15 @@
 
 #include "lexer.h"
 #include "parser.h"
+#include "tools.h"
+
+void print_tokens(Token *t) {
+  size_t i = 0;
+  while(t[i].value != NULL){
+    print_token(t[i]);
+    i++;
+  }
+}
 
 int main(int argc, char *argv[]) {
   FILE *file;
@@ -17,14 +26,11 @@ int main(int argc, char *argv[]) {
 
   Token *tokens = lexer(file);
   
-  int counter = 0;
-  while(tokens[counter].type != END_OF_TOKENS){
-    print_token(tokens[counter]);
-    counter++;
-  }
-
+  print_tokens(tokens);
+  
   Node *root = parser(tokens);
   
   printf("Printing AST (Abstract Syntax Tree):\n");
   print_tree(root, 0, "Root", 0);
+  
 }

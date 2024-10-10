@@ -523,12 +523,10 @@ Node *parser(Token *tokens){
   curly_stack *stack = malloc(sizeof(curly_stack));
 
   while(current_token->type != END_OF_TOKENS){
-    TokenType token_type = current_token->type;
-
     if(current == NULL){
       break;
     }
-    switch(token_type){
+    switch(current_token->type){
       case LET:
       case FN:
       case IF:
@@ -539,23 +537,23 @@ Node *parser(Token *tokens){
       case WHILE:
       case WRITE:
       case EXIT:
-        if(token_type == LET){
+        if(current_token->type == LET){
           current = create_variables(current_token, current);
-        } else if(token_type == FN){
+        } else if(current_token->type == FN){
           //handle function creation
-        } else if(token_type == IF){
+        } else if(current_token->type == IF){
           //handle if statement creation
-        } else if(token_type == ELSE_IF){
+        } else if(current_token->type == ELSE_IF){
           //handle else if creation
-        } else if(token_type == ELSE){
+        } else if(current_token->type == ELSE){
           //handle else creation
-        } else if(token_type == FOR_EACH){
+        } else if(current_token->type == FOR_EACH){
           //handle for each creation
-        } else if(token_type == WHILE){
+        } else if(current_token->type == WHILE){
           //handle while loop creation
-        } else if(token_type == WRITE){
+        } else if(current_token->type == WRITE){
           //handle write creation
-        } else if(token_type == EXIT){
+        } else if(current_token->type == EXIT){
           current = handle_exit_syscall(current_token, current);
         }
         break;
@@ -567,7 +565,7 @@ Node *parser(Token *tokens){
       case CLOSE_PAREN:
       case SEMICOLON:
       case COMMA:
-        if(token_type == OPEN_CURLY){
+        if(current_token->type == OPEN_CURLY){
           Token *temp = current_token;
           open_curly = init_node(open_curly, temp->value, OPEN_CURLY);
           current->left = open_curly;
@@ -575,7 +573,7 @@ Node *parser(Token *tokens){
           push_curly(stack, open_curly);
           current = peek_curly(stack);
         }
-        if(token_type == CLOSE_CURLY){
+        if(current_token->type == CLOSE_CURLY){
           Node *close_curly = malloc(sizeof(Node));
           open_curly = pop_curly(stack);
           if(open_curly == NULL){
@@ -603,7 +601,7 @@ Node *parser(Token *tokens){
         break;
       case IDENTIFIER:
         current_token--;
-        if(token_type == SEMICOLON || token_type == OPEN_CURLY || token_type == CLOSE_CURLY){
+        if(current_token->type == SEMICOLON || current_token->type == OPEN_CURLY || current_token->type == CLOSE_CURLY){
           current_token++;
           current = create_variable_reusage(current_token, current);
         } else {

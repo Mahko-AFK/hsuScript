@@ -80,4 +80,3 @@ bool is_literal(TokenType token) {
             return false;
     }
 }
-
