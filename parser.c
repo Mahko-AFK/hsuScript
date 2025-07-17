@@ -521,6 +521,7 @@ Node *parser(Token *tokens){
   //Node *close_curly = malloc(sizeof(Node));
 
   curly_stack *stack = malloc(sizeof(curly_stack));
+  stack->top = -1;
 
   while(current_token->type != END_OF_TOKENS){
     if(current == NULL){

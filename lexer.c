@@ -229,7 +229,7 @@ Token *generate_number(char *current, int *current_index){
 Token *generate_keyword_or_identifier(char *current, int *current_index){
   Token *token = malloc(sizeof(Token));
   token->line_num = line_number;
-  char *keyword = malloc(sizeof(char) * 8);
+  char *keyword = malloc(sizeof(char) * 64);
   int keyword_index = 0;
   while(isalpha(current[*current_index]) && current[*current_index] != '\0'){
     keyword[keyword_index] = current[*current_index];
