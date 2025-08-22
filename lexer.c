@@ -232,8 +232,10 @@ Token *generate_keyword_or_identifier(char *current, int *current_index){
   char *keyword = malloc(sizeof(char) * 64);
   int keyword_index = 0;
   while(isalpha(current[*current_index]) && current[*current_index] != '\0'){
-    keyword[keyword_index] = current[*current_index];
-    keyword_index++;
+    if(keyword_index < 63){
+      keyword[keyword_index] = current[*current_index];
+      keyword_index++;
+    }
     *current_index += 1;
   }
   keyword[keyword_index] = '\0';
@@ -279,13 +281,15 @@ Token *generate_keyword_or_identifier(char *current, int *current_index){
   } else if(strcmp(keyword, "or") == 0){ 
     token->type = OR;
     token->value = "or";
-  } else if(strcmp(keyword, "and") == 0){ 
+  } else if(strcmp(keyword, "and") == 0){
     token->type = AND;
     token->value = "and";
   } else {
     token->type = IDENTIFIER;
     token->value = keyword;
+    return token;
   }
+  free(keyword);
   return token;
 }
 
@@ -385,31 +389,37 @@ Token *lexer(FILE *file) {
       tokens[tokens_index] = *token;
       free(token);
       tokens_index++;
+      current_index--;
     } else if (current[current_index] == '|' && current[current_index + 1] == '|') {
       token = generate_two_char_operator(current, &current_index, OR);
       tokens[tokens_index] = *token;
       free(token);
       tokens_index++;
+      current_index--;
     } else if (current[current_index] == '+' && current[current_index + 1] == '+') {
       token = generate_two_char_operator(current, &current_index, PLUS_PLUS);
       tokens[tokens_index] = *token;
       free(token);
       tokens_index++;
+      current_index--;
     } else if (current[current_index] == '-' && current[current_index + 1] == '-') {
       token = generate_two_char_operator(current, &current_index, MINUS_MINUS);
       tokens[tokens_index] = *token;
       free(token);
       tokens_index++;
+      current_index--;
     } else if (current[current_index] == '+' && current[current_index + 1] == '=') {
       token = generate_two_char_operator(current, &current_index, PLUS_EQUALS);
       tokens[tokens_index] = *token;
       free(token);
       tokens_index++;
+      current_index--;
     } else if (current[current_index] == '-' && current[current_index + 1] == '=') {
       token = generate_two_char_operator(current, &current_index, MINUS_EQUALS);
       tokens[tokens_index] = *token;
       free(token);
       tokens_index++;
+      current_index--;
     }
     else if (current[current_index] == ';') {
       token = generate_separator_or_operator(current, &current_index, SEMICOLON);
@@ -525,4 +535,28 @@ Token *lexer(FILE *file) {
   free(current);
 
   return tokens;
+}
+
+void free_tokens(Token *tokens){
+  size_t i = 0;
+  while(tokens[i].type != END_OF_TOKENS){
+    switch(tokens[i].type){
+      case LET:
+      case FN:
+      case IF:
+      case ELSE_IF:
+      case ELSE:
+      case FOR:
+      case FOR_EACH:
+      case WHILE:
+      case WRITE:
+      case EXIT:
+        break;
+      default:
+        free(tokens[i].value);
+        break;
+    }
+    i++;
+  }
+  free(tokens);
 }
