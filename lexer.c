@@ -232,8 +232,10 @@ Token *generate_keyword_or_identifier(char *current, int *current_index){
   char *keyword = malloc(sizeof(char) * 64);
   int keyword_index = 0;
   while(isalpha(current[*current_index]) && current[*current_index] != '\0'){
-    keyword[keyword_index] = current[*current_index];
-    keyword_index++;
+    if(keyword_index < 63){
+      keyword[keyword_index] = current[*current_index];
+      keyword_index++;
+    }
     *current_index += 1;
   }
   keyword[keyword_index] = '\0';
@@ -385,31 +387,37 @@ Token *lexer(FILE *file) {
       tokens[tokens_index] = *token;
       free(token);
       tokens_index++;
+      current_index--;
     } else if (current[current_index] == '|' && current[current_index + 1] == '|') {
       token = generate_two_char_operator(current, &current_index, OR);
       tokens[tokens_index] = *token;
       free(token);
       tokens_index++;
+      current_index--;
     } else if (current[current_index] == '+' && current[current_index + 1] == '+') {
       token = generate_two_char_operator(current, &current_index, PLUS_PLUS);
       tokens[tokens_index] = *token;
       free(token);
       tokens_index++;
+      current_index--;
     } else if (current[current_index] == '-' && current[current_index + 1] == '-') {
       token = generate_two_char_operator(current, &current_index, MINUS_MINUS);
       tokens[tokens_index] = *token;
       free(token);
       tokens_index++;
+      current_index--;
     } else if (current[current_index] == '+' && current[current_index + 1] == '=') {
       token = generate_two_char_operator(current, &current_index, PLUS_EQUALS);
       tokens[tokens_index] = *token;
       free(token);
       tokens_index++;
+      current_index--;
     } else if (current[current_index] == '-' && current[current_index + 1] == '=') {
       token = generate_two_char_operator(current, &current_index, MINUS_EQUALS);
       tokens[tokens_index] = *token;
       free(token);
       tokens_index++;
+      current_index--;
     }
     else if (current[current_index] == ';') {
       token = generate_separator_or_operator(current, &current_index, SEMICOLON);
