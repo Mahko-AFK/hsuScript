@@ -72,5 +72,6 @@ Token *generate_keyword(char *current, int *current_index);
 Token *generate_separator_or_operator(char *current, int *current_index, TokenType type);
 Token *generate_separator_or_operator(char *current, int *current_index, TokenType type);
 Token *lexer(FILE *file);
+void free_tokens(Token *tokens);
 
 #endif

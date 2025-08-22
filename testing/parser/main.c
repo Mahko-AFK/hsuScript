@@ -24,7 +24,9 @@ int main(int argc, char *argv[]) {
   }
 
   Node *root = parser(tokens);
-  
+
   printf("Printing AST (Abstract Syntax Tree):\n");
   print_tree(root, 0, "Root", 0);
+  free_tree(root);
+  free_tokens(tokens);
 }

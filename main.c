@@ -27,6 +27,6 @@ int main(int argc, char *argv[]) {
   printf("Printing AST (Abstract Syntax Tree):\n");
   print_tree(root, 0, "Root", 0);
   free_tree(root);
-  free(tokens);
+  free_tokens(tokens);
   return 0;
 }

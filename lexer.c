@@ -281,13 +281,15 @@ Token *generate_keyword_or_identifier(char *current, int *current_index){
   } else if(strcmp(keyword, "or") == 0){ 
     token->type = OR;
     token->value = "or";
-  } else if(strcmp(keyword, "and") == 0){ 
+  } else if(strcmp(keyword, "and") == 0){
     token->type = AND;
     token->value = "and";
   } else {
     token->type = IDENTIFIER;
     token->value = keyword;
+    return token;
   }
+  free(keyword);
   return token;
 }
 
@@ -533,4 +535,28 @@ Token *lexer(FILE *file) {
   free(current);
 
   return tokens;
+}
+
+void free_tokens(Token *tokens){
+  size_t i = 0;
+  while(tokens[i].type != END_OF_TOKENS){
+    switch(tokens[i].type){
+      case LET:
+      case FN:
+      case IF:
+      case ELSE_IF:
+      case ELSE:
+      case FOR:
+      case FOR_EACH:
+      case WHILE:
+      case WRITE:
+      case EXIT:
+        break;
+      default:
+        free(tokens[i].value);
+        break;
+    }
+    i++;
+  }
+  free(tokens);
 }
