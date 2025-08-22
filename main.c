@@ -9,28 +9,24 @@
 
 void print_tokens(Token *t) {
   size_t i = 0;
-  while(t[i].value != NULL){
+  while(t[i].type != END_OF_TOKENS){
     print_token(t[i]);
     i++;
   }
 }
 
 int main(int argc, char *argv[]) {
-  FILE *file;
-  file = fopen(argv[1], "r");
-
+  FILE *file = fopen(argv[1], "r");
   if(!file){
     printf("ERROR: File not found\n");
     exit(1);
   }
-
   Token *tokens = lexer(file);
-  
   print_tokens(tokens);
-  
   Node *root = parser(tokens);
-  
   printf("Printing AST (Abstract Syntax Tree):\n");
   print_tree(root, 0, "Root", 0);
-  
+  free_tree(root);
+  free(tokens);
+  return 0;
 }
