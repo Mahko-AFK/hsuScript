@@ -1,14 +1,33 @@
 # hsuScript
 
-hsuScript is a low-level programming language compiler built in C.
+hsuScript is a toy compiler written in C.
 
-The name is an homage to my old high school computer science teacher, Mr. Hsu.
+## Build
 
-Very nice guy definitely didn't do anything bad during his teaching career at Lake Park High School....
+Compile the project with:
 
-> [!IMPORTANT]
-> This is NOT an attempt to develop the next best low-level language.
+```bash
+./build.sh
+```
 
-This is just a fun project to help me develop a better understanding of the inner workings of compilers and interpreters. BONUS: I get better at C!
+The executable is placed at `build/hsc`. AddressSanitizer build is available via `./build_asan.sh`.
 
-But please feel free to flex on me by forking this repo and building "the next best low-level programming language"! >:P
+## Running
+
+Run the compiler on a `.hs` source file to print tokens and the AST:
+
+```bash
+./build/hsc path/to/file.hs
+```
+
+## Language Syntax
+
+- Entry point defined as `fn main() { ... }`
+- Variables declared with `let name = value;`
+- Strings use double quotes and can be concatenated with `+`
+- Arithmetic operators: `+`, `-`, `*`, `/`, `%`
+- Conditionals: `if`, `elif`, `else`
+- Loops: `for(init; condition; update) { ... }`
+- Output using `write(expression);`
+
+See `test_cases/` for examples.
