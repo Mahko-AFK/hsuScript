@@ -235,7 +235,7 @@ Node *create_variable_reusage(Token *current_token, Node *current){
     current = equals_node;
     current_token++;
   }
-  if(current_token->type == END_OF_TOKENS || (current_token->type != INT && current_token->type != IDENTIFIER)){
+  if(current_token->type == END_OF_TOKENS){
     print_error("Invalid Syntax After Equals", current_token->line_num);
   }
 
@@ -328,6 +328,10 @@ Node *create_variable_reusage(Token *current_token, Node *current){
         Node *identifier_node = malloc(sizeof(Node));
         identifier_node = init_node(identifier_node, current_token->value, IDENTIFIER);
         oper_node->right = identifier_node;
+      } else if(current_token->type == STRING){
+        Node *string_node = malloc(sizeof(Node));
+        string_node = init_node(string_node, current_token->value, STRING);
+        oper_node->right = string_node;
       }
       current_token++;
     }
@@ -342,6 +346,11 @@ Node *create_variable_reusage(Token *current_token, Node *current){
       Node *identifier_node = malloc(sizeof(Node));
       identifier_node = init_node(identifier_node, current_token->value, IDENTIFIER);
       current->left = identifier_node;
+      current_token++;
+    } else if(current_token->type == STRING){
+      Node *string_node = malloc(sizeof(Node));
+      string_node = init_node(string_node, current_token->value, STRING);
+      current->left = string_node;
       current_token++;
     }
   }
@@ -383,7 +392,7 @@ Node *create_variables(Token *current_token, Node *current){
     current = equals_node;
     current_token++;
   }
-  if(current_token->type == END_OF_TOKENS || (current_token->type != INT && current_token->type != IDENTIFIER)){
+  if(current_token->type == END_OF_TOKENS){
     print_error("Invalid Syntax After Equals", current_token->line_num);
   }
 
@@ -476,6 +485,10 @@ Node *create_variables(Token *current_token, Node *current){
         Node *identifier_node = malloc(sizeof(Node));
         identifier_node = init_node(identifier_node, current_token->value, IDENTIFIER);
         oper_node->right = identifier_node;
+      } else if(current_token->type == STRING){
+        Node *string_node = malloc(sizeof(Node));
+        string_node = init_node(string_node, current_token->value, STRING);
+        oper_node->right = string_node;
       }
       current_token++;
     }
@@ -490,6 +503,11 @@ Node *create_variables(Token *current_token, Node *current){
       Node *identifier_node = malloc(sizeof(Node));
       identifier_node = init_node(identifier_node, current_token->value, IDENTIFIER);
       current->left = identifier_node;
+      current_token++;
+    } else if(current_token->type == STRING){
+      Node *string_node = malloc(sizeof(Node));
+      string_node = init_node(string_node, current_token->value, STRING);
+      current->left = string_node;
       current_token++;
     }
   }

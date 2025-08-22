@@ -71,7 +71,7 @@ void print_error(char *error_type, size_t line_number){
   exit(1);
 }
 
-Node *parse_expression(Token *current_token, Node *current_node){
+Node *parse_expression(Token *current_token){
   Node *expr_node = malloc(sizeof(Node));
   expr_node = init_node(expr_node, current_token->value, current_token->type);
   current_token++;
@@ -149,7 +149,7 @@ Token *generate_operation_nodes(Token *current_token, Node *current_node){
   return current_token;
 }
 
-Node *handle_exit_syscall(Node *root, Token *current_token, Node *current){
+Node *handle_exit_syscall(Token *current_token, Node *current){
     Node *exit_node = malloc(sizeof(Node));
     exit_node = init_node(exit_node, current_token->value, EXIT);
     current->right = exit_node;
@@ -235,7 +235,7 @@ Node *create_variable_reusage(Token *current_token, Node *current){
     current = equals_node;
     current_token++;
   }
-  if(current_token->type == END_OF_TOKENS || (current_token->type != INT && current_token->type != IDENTIFIER)){
+  if(current_token->type == END_OF_TOKENS){
     print_error("Invalid Syntax After Equals", current_token->line_num);
   }
 
@@ -328,6 +328,10 @@ Node *create_variable_reusage(Token *current_token, Node *current){
         Node *identifier_node = malloc(sizeof(Node));
         identifier_node = init_node(identifier_node, current_token->value, IDENTIFIER);
         oper_node->right = identifier_node;
+      } else if(current_token->type == STRING){
+        Node *string_node = malloc(sizeof(Node));
+        string_node = init_node(string_node, current_token->value, STRING);
+        oper_node->right = string_node;
       }
       current_token++;
     }
@@ -342,6 +346,11 @@ Node *create_variable_reusage(Token *current_token, Node *current){
       Node *identifier_node = malloc(sizeof(Node));
       identifier_node = init_node(identifier_node, current_token->value, IDENTIFIER);
       current->left = identifier_node;
+      current_token++;
+    } else if(current_token->type == STRING){
+      Node *string_node = malloc(sizeof(Node));
+      string_node = init_node(string_node, current_token->value, STRING);
+      current->left = string_node;
       current_token++;
     }
   }
@@ -383,7 +392,7 @@ Node *create_variables(Token *current_token, Node *current){
     current = equals_node;
     current_token++;
   }
-  if(current_token->type == END_OF_TOKENS || (current_token->type != INT && current_token->type != IDENTIFIER)){
+  if(current_token->type == END_OF_TOKENS){
     print_error("Invalid Syntax After Equals", current_token->line_num);
   }
 
@@ -476,6 +485,10 @@ Node *create_variables(Token *current_token, Node *current){
         Node *identifier_node = malloc(sizeof(Node));
         identifier_node = init_node(identifier_node, current_token->value, IDENTIFIER);
         oper_node->right = identifier_node;
+      } else if(current_token->type == STRING){
+        Node *string_node = malloc(sizeof(Node));
+        string_node = init_node(string_node, current_token->value, STRING);
+        oper_node->right = string_node;
       }
       current_token++;
     }
@@ -490,6 +503,11 @@ Node *create_variables(Token *current_token, Node *current){
       Node *identifier_node = malloc(sizeof(Node));
       identifier_node = init_node(identifier_node, current_token->value, IDENTIFIER);
       current->left = identifier_node;
+      current_token++;
+    } else if(current_token->type == STRING){
+      Node *string_node = malloc(sizeof(Node));
+      string_node = init_node(string_node, current_token->value, STRING);
+      current->left = string_node;
       current_token++;
     }
   }
@@ -521,14 +539,13 @@ Node *parser(Token *tokens){
   //Node *close_curly = malloc(sizeof(Node));
 
   curly_stack *stack = malloc(sizeof(curly_stack));
+  stack->top = -1;
 
   while(current_token->type != END_OF_TOKENS){
-    TokenType token_type = current_token->type;
-
     if(current == NULL){
       break;
     }
-    switch(token_type){
+    switch(current_token->type){
       case LET:
       case FN:
       case IF:
@@ -539,24 +556,24 @@ Node *parser(Token *tokens){
       case WHILE:
       case WRITE:
       case EXIT:
-        if(token_type == LET){
+        if(current_token->type == LET){
           current = create_variables(current_token, current);
-        } else if(token_type == FN){
+        } else if(current_token->type == FN){
           //handle function creation
-        } else if(token_type == IF){
+        } else if(current_token->type == IF){
           //handle if statement creation
-        } else if(token_type == ELSE_IF){
+        } else if(current_token->type == ELSE_IF){
           //handle else if creation
-        } else if(token_type == ELSE){
+        } else if(current_token->type == ELSE){
           //handle else creation
-        } else if(token_type == FOR_EACH){
+        } else if(current_token->type == FOR_EACH){
           //handle for each creation
-        } else if(token_type == WHILE){
+        } else if(current_token->type == WHILE){
           //handle while loop creation
-        } else if(token_type == WRITE){
+        } else if(current_token->type == WRITE){
           //handle write creation
-        } else if(token_type == EXIT){
-          current = handle_exit_syscall(root, current_token, current);
+        } else if(current_token->type == EXIT){
+          current = handle_exit_syscall(current_token, current);
         }
         break;
       case OPEN_CURLY:
@@ -567,7 +584,7 @@ Node *parser(Token *tokens){
       case CLOSE_PAREN:
       case SEMICOLON:
       case COMMA:
-        if(token_type == OPEN_CURLY){
+        if(current_token->type == OPEN_CURLY){
           Token *temp = current_token;
           open_curly = init_node(open_curly, temp->value, OPEN_CURLY);
           current->left = open_curly;
@@ -575,7 +592,7 @@ Node *parser(Token *tokens){
           push_curly(stack, open_curly);
           current = peek_curly(stack);
         }
-        if(token_type == CLOSE_CURLY){
+        if(current_token->type == CLOSE_CURLY){
           Node *close_curly = malloc(sizeof(Node));
           open_curly = pop_curly(stack);
           if(open_curly == NULL){
@@ -603,9 +620,9 @@ Node *parser(Token *tokens){
         break;
       case IDENTIFIER:
         current_token--;
-        if(token_type == SEMICOLON || token_type == OPEN_CURLY || token_type == CLOSE_CURLY){
+        if(current_token->type == SEMICOLON || current_token->type == OPEN_CURLY || current_token->type == CLOSE_CURLY){
           current_token++;
-          // handle create variable reusage
+          current = create_variable_reusage(current_token, current);
         } else {
           current_token++;
         }

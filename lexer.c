@@ -232,8 +232,10 @@ Token *generate_keyword_or_identifier(char *current, int *current_index){
   char *keyword = malloc(sizeof(char) * 64);
   int keyword_index = 0;
   while(isalpha(current[*current_index]) && current[*current_index] != '\0'){
-    keyword[keyword_index] = current[*current_index];
-    keyword_index++;
+    if(keyword_index < 63){
+      keyword[keyword_index] = current[*current_index];
+      keyword_index++;
+    }
     *current_index += 1;
   }
   keyword[keyword_index] = '\0';
