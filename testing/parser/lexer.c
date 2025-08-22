@@ -209,7 +209,6 @@ void print_token(Token token){
 
 Token *generate_number(char *current, int *current_index){
   Token *token = malloc(sizeof(Token));
-  token->line_num = malloc(sizeof(size_t));
   token->line_num = line_number;
   token->type = INT;
   char *value = malloc(sizeof(char) * 8);
@@ -229,13 +228,14 @@ Token *generate_number(char *current, int *current_index){
 
 Token *generate_keyword_or_identifier(char *current, int *current_index){
   Token *token = malloc(sizeof(Token));
-  token->line_num = malloc(sizeof(size_t));
   token->line_num = line_number;
-  char *keyword = malloc(sizeof(char) * 8);
+  char *keyword = malloc(sizeof(char) * 64);
   int keyword_index = 0;
   while(isalpha(current[*current_index]) && current[*current_index] != '\0'){
-    keyword[keyword_index] = current[*current_index];
-    keyword_index++;
+    if(keyword_index < 63){
+      keyword[keyword_index] = current[*current_index];
+      keyword_index++;
+    }
     *current_index += 1;
   }
   keyword[keyword_index] = '\0';
@@ -293,7 +293,6 @@ Token *generate_keyword_or_identifier(char *current, int *current_index){
 
 Token *generate_string_token(char *current, int *current_index){
   Token *token = malloc(sizeof(Token));
-  token->line_num = malloc(sizeof(size_t));
   token->line_num = line_number;
   char *value = malloc(sizeof(char) * 64);
   int value_index = 0;
@@ -314,7 +313,6 @@ Token *generate_separator_or_operator(char *current, int *current_index, TokenTy
   token->value = malloc(sizeof(char) * 2);
   token->value[0] = current[*current_index];
   token->value[1] = '\0';
-  token->line_num = malloc(sizeof(size_t));
   token->line_num = line_number;
   token->type = type;
   return token;
@@ -327,7 +325,6 @@ Token *generate_two_char_operator(char *current, int *current_index, TokenType t
     token->value[1] = current[*current_index + 1];
     token->value[2] = '\0';
     *current_index += 2;
-    token->line_num = malloc(sizeof(size_t));
     token->line_num = line_number;
     token->type = type;
     return token;
@@ -335,7 +332,7 @@ Token *generate_two_char_operator(char *current, int *current_index, TokenType t
 
 size_t tokens_index;
 
-Token *lexer(FILE *file){
+Token *lexer(FILE *file) {
   int length;
   char *current = 0;
 
@@ -343,7 +340,7 @@ Token *lexer(FILE *file){
   length = ftell(file);
   fseek(file, 0, SEEK_SET);
 
-  current = malloc(sizeof(char) * length);
+  current = malloc(sizeof(char) * (length + 1));
   fread(current, 1, length, file);
 
   fclose(file);
@@ -356,142 +353,178 @@ Token *lexer(FILE *file){
   Token *tokens = malloc(sizeof(Token) * number_of_tokens);
   tokens_index = 0;
 
-  while(current[current_index] != '\0'){
-    Token *token = malloc(sizeof(Token));
+  while(current[current_index] != '\0') {
+    Token *token;
+    
     tokens_size++;
-    if(tokens_size > number_of_tokens){
+    if(tokens_size > number_of_tokens) {
       number_of_tokens *= 1.5;
       tokens = realloc(tokens, sizeof(Token) * number_of_tokens);
     }
-    if (current[current_index] == '=' && current[current_index + 1] == '='){
+
+    if (current[current_index] == '=' && current[current_index + 1] == '=') {
       token = generate_two_char_operator(current, &current_index, EQUALS);
       tokens[tokens_index] = *token;
+      free(token);
       tokens_index++;
     } else if (current[current_index] == '!' && current[current_index + 1] == '=') {
       token = generate_two_char_operator(current, &current_index, NOT_EQUALS);
       tokens[tokens_index] = *token;
+      free(token);
       tokens_index++;
-    } else if (current[current_index] == '<' && current[current_index + 1] == '='){
-      token = generate_two_char_operator(current, &current_index, LESS_EQUALS); 
+    } else if (current[current_index] == '<' && current[current_index + 1] == '=') {
+      token = generate_two_char_operator(current, &current_index, LESS_EQUALS);
       tokens[tokens_index] = *token;
+      free(token);
       tokens_index++;
-    } else if (current[current_index] == '>' && current[current_index + 1] == '='){
-      token = generate_two_char_operator(current, &current_index, GREATER_EQUALS);  
+    } else if (current[current_index] == '>' && current[current_index + 1] == '=') {
+      token = generate_two_char_operator(current, &current_index, GREATER_EQUALS);
       tokens[tokens_index] = *token;
+      free(token);
       tokens_index++;
-    } else if (current[current_index] == '&' && current[current_index + 1] == '&'){
-      token = generate_two_char_operator(current, &current_index, AND);  
+    } else if (current[current_index] == '&' && current[current_index + 1] == '&') {
+      token = generate_two_char_operator(current, &current_index, AND);
       tokens[tokens_index] = *token;
+      free(token);
       tokens_index++;
-    } else if (current[current_index] == '|' && current[current_index + 1] == '|'){
+    } else if (current[current_index] == '|' && current[current_index + 1] == '|') {
       token = generate_two_char_operator(current, &current_index, OR);
       tokens[tokens_index] = *token;
+      free(token);
       tokens_index++;
-    } else if (current[current_index] == '+' && current[current_index + 1] == '+'){
+    } else if (current[current_index] == '+' && current[current_index + 1] == '+') {
       token = generate_two_char_operator(current, &current_index, PLUS_PLUS);
       tokens[tokens_index] = *token;
+      free(token);
       tokens_index++;
-    } else if (current[current_index] == '-' && current[current_index + 1] == '-'){
+    } else if (current[current_index] == '-' && current[current_index + 1] == '-') {
       token = generate_two_char_operator(current, &current_index, MINUS_MINUS);
       tokens[tokens_index] = *token;
+      free(token);
       tokens_index++;
-    } else if (current[current_index] == '+' && current[current_index + 1] == '='){
+    } else if (current[current_index] == '+' && current[current_index + 1] == '=') {
       token = generate_two_char_operator(current, &current_index, PLUS_EQUALS);
       tokens[tokens_index] = *token;
+      free(token);
       tokens_index++;
-    } else if (current[current_index] == '-' && current[current_index + 1] == '='){
+    } else if (current[current_index] == '-' && current[current_index + 1] == '=') {
       token = generate_two_char_operator(current, &current_index, MINUS_EQUALS);
       tokens[tokens_index] = *token;
-      tokens_index++; 
-    } else if(current[current_index] == ';'){
+      free(token);
+      tokens_index++;
+    }
+    else if (current[current_index] == ';') {
       token = generate_separator_or_operator(current, &current_index, SEMICOLON);
       tokens[tokens_index] = *token;
+      free(token);
       tokens_index++;
-    } else if(current[current_index] == ','){
+    } else if (current[current_index] == ',') {
       token = generate_separator_or_operator(current, &current_index, COMMA);
       tokens[tokens_index] = *token;
+      free(token);
       tokens_index++;
-    } else if(current[current_index] == '('){
+    } else if (current[current_index] == '(') {
       token = generate_separator_or_operator(current, &current_index, OPEN_PAREN);
       tokens[tokens_index] = *token;
+      free(token);
       tokens_index++;
-    } else if(current[current_index] == ')'){
+    } else if (current[current_index] == ')') {
       token = generate_separator_or_operator(current, &current_index, CLOSE_PAREN);
       tokens[tokens_index] = *token;
+      free(token);
       tokens_index++;
-    } else if(current[current_index] == '{'){
+    } else if (current[current_index] == '{') {
       token = generate_separator_or_operator(current, &current_index, OPEN_CURLY);
       tokens[tokens_index] = *token;
+      free(token);
       tokens_index++;
-    } else if(current[current_index] == '}'){
+    } else if (current[current_index] == '}') {
       token = generate_separator_or_operator(current, &current_index, CLOSE_CURLY);
       tokens[tokens_index] = *token;
+      free(token);
       tokens_index++;
-    } else if(current[current_index] == '='){
+    } else if (current[current_index] == '=') {
       token = generate_separator_or_operator(current, &current_index, ASSIGNMENT);
       tokens[tokens_index] = *token;
+      free(token);
       tokens_index++;
-    } else if(current[current_index] == '+'){
+    } else if (current[current_index] == '+') {
       token = generate_separator_or_operator(current, &current_index, PLUS);
       tokens[tokens_index] = *token;
+      free(token);
       tokens_index++;
-    } else if(current[current_index] == '-'){
+    } else if (current[current_index] == '-') {
       token = generate_separator_or_operator(current, &current_index, DASH);
       tokens[tokens_index] = *token;
+      free(token);
       tokens_index++;
-    } else if(current[current_index] == '*'){
+    } else if (current[current_index] == '*') {
       token = generate_separator_or_operator(current, &current_index, STAR);
       tokens[tokens_index] = *token;
+      free(token);
       tokens_index++;
-    } else if(current[current_index] == '/'){
+    } else if (current[current_index] == '/') {
       token = generate_separator_or_operator(current, &current_index, SLASH);
       tokens[tokens_index] = *token;
+      free(token);
       tokens_index++;
-    } else if(current[current_index] == '%'){
+    } else if (current[current_index] == '%') {
       token = generate_separator_or_operator(current, &current_index, PERCENT);
       tokens[tokens_index] = *token;
+      free(token);
       tokens_index++;
-    } else if(current[current_index] == '>'){
+    } else if (current[current_index] == '>') {
       token = generate_separator_or_operator(current, &current_index, GREATER);
       tokens[tokens_index] = *token;
+      free(token);
       tokens_index++;
-    } else if(current[current_index] == '<'){
+    } else if (current[current_index] == '<') {
       token = generate_separator_or_operator(current, &current_index, LESS);
       tokens[tokens_index] = *token;
+      free(token);
       tokens_index++;
-    } else if(current[current_index] == '['){
+    } else if (current[current_index] == '[') {
       token = generate_separator_or_operator(current, &current_index, OPEN_BRACKET);
       tokens[tokens_index] = *token;
+      free(token);
       tokens_index++;
-    } else if(current[current_index] == ']'){
+    } else if (current[current_index] == ']') {
       token = generate_separator_or_operator(current, &current_index, CLOSE_BRACKET);
       tokens[tokens_index] = *token;
+      free(token);
       tokens_index++;
-    } else if(current[current_index] == '!'){
+    } else if (current[current_index] == '!') {
       token = generate_separator_or_operator(current, &current_index, NOT);
       tokens[tokens_index] = *token;
+      free(token);
       tokens_index++;
-    } else if(current[current_index] == '"'){
+    }
+    else if (current[current_index] == '"') {
       token = generate_string_token(current, &current_index);
       tokens[tokens_index] = *token;
+      free(token);
       tokens_index++;
-    } else if(isdigit(current[current_index])){
-      token = generate_number(current, &current_index); 
+    } else if (isdigit(current[current_index])) {
+      token = generate_number(current, &current_index);
       tokens[tokens_index] = *token;
+      free(token);
       tokens_index++;
       current_index--;
-    } else if(isalpha(current[current_index])){
+    } else if (isalpha(current[current_index])) {
       token = generate_keyword_or_identifier(current, &current_index);
       tokens[tokens_index] = *token;
+      free(token);
       tokens_index++;
       current_index--;
-    } else if(current[current_index] == '\n'){
+    } else if (current[current_index] == '\n') {
       line_number += 1;
-    } 
-    free(token);
+    }
     current_index++;
   }
-  tokens[tokens_index].value = '\0';
+  tokens[tokens_index].value = NULL;
   tokens[tokens_index].type = END_OF_TOKENS;
+
+  free(current);
+
   return tokens;
 }
