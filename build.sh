@@ -1,1 +1,1 @@
-gcc main.c lexer.c parser.c tools.c -o build/hsc -Wall -Wextra
+gcc -Iinclude main.c lexer.c parser.c tools.c -o build/hsc -Wall -Wextra
