@@ -8,6 +8,12 @@
 typedef enum {
   NK_Program,
   NK_Block,
+  NK_FnDecl,
+  NK_LetStmt,
+  NK_AssignStmt,
+  NK_IfStmt,
+  NK_WhileStmt,
+  NK_ForStmt,
   NK_WriteStmt,
   NK_ExitStmt,
   NK_Unary,

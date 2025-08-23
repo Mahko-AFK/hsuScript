@@ -2,39 +2,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <stdbool.h>
 
 #include "parser.h"
 #include "tools.h"
 #include "token_helpers.h"
-
-#define MAX_CURLY_STACK_LENGTH 64
-
-typedef struct {
-  Node *content[MAX_CURLY_STACK_LENGTH];
-  int top;
-} curly_stack;
-
-Node *peek_curly(curly_stack *stack){
-  if (stack->top < 0)
-    return NULL;
-  return stack->content[stack->top];
-}
-
-bool push_curly(curly_stack *stack, Node *element){
-  if (stack->top + 1 >= MAX_CURLY_STACK_LENGTH)
-    return false;
-  stack->top++;
-  stack->content[stack->top] = element;
-  return true;
-}
-
-Node *pop_curly(curly_stack *stack){
-  if (stack->top < 0)
-    return NULL;
-  Node *result = stack->content[stack->top];
-  stack->top--;
-  return result;
-}
 
 // --- helper constructors ---------------------------------------------------
 // Allocate and initialize a node. `node` is ignored and kept only for
@@ -178,228 +150,205 @@ static Node *parse_expr(Token **pp, int minbp) {
   return left;
 }
 
-Node *handle_exit_syscall(Token **pp, Node *current){
-  Token *tok = expect(pp, EXIT, "Invalid Syntax on EXIT");
-  Node *exit_node = init_node(NULL, tok->value, EXIT);
-  current->right = exit_node;
-  current = exit_node;
+// --- small vector helper ---------------------------------------------------
+static void vec_push(Vec *v, Node *n) {
+  if (v->len + 1 > v->cap) {
+    v->cap = v->cap ? v->cap * 2 : 4;
+    v->items = realloc(v->items, v->cap * sizeof(Node *));
+  }
+  v->items[v->len++] = n;
+}
 
-  expect(pp, OPEN_PAREN, "Invalid Syntax on OPEN");
+// --- parsing helpers -------------------------------------------------------
+
+static Node *parse_block(Token **pp);
+static Node *parse_stmt(Token **pp);
+
+static Node *parse_write(Token **pp) {
+  expect(pp, WRITE, "expected write");
+  Node *node = init_node(NULL, NULL, 0);
+  node->kind = NK_WriteStmt;
+  expect(pp, OPEN_PAREN, "expected (");
   Node *expr = parse_expr(pp, 0);
-  exit_node->left = expr;
-  expect(pp, CLOSE_PAREN, "Invalid Syntax on CLOSE");
-  expect(pp, SEMICOLON, "Invalid Syntax on SEMI");
-
-  return current;
+  node->left = expr;
+  expect(pp, CLOSE_PAREN, "expected )");
+  expect(pp, SEMICOLON, "expected semicolon");
+  return node;
 }
 
-void handle_token_errors(char *error_text, Token *current_token, bool isType){
-  if(current_token->type == END_OF_TOKENS || !isType){
-    print_error(error_text, current_token->line_num);
-  }
-}
-
-Node *create_variable_reusage(Token **pp, Node *current){
+static Node *parse_exit(Token **pp) {
+  expect(pp, EXIT, "expected exit");
+  Node *node = init_node(NULL, NULL, 0);
+  node->kind = NK_ExitStmt;
+  expect(pp, OPEN_PAREN, "expected (");
   Node *expr = parse_expr(pp, 0);
-  expect(pp, SEMICOLON, "Invalid Syntax After Expression");
-  current->right = expr;
-  return current;
+  node->left = expr;
+  expect(pp, CLOSE_PAREN, "expected )");
+  expect(pp, SEMICOLON, "expected semicolon");
+  return node;
 }
 
-Node *create_variables(Token **pp, Node *current){
-  Token *token = peek(pp); // at LET
-  Node *var_node = init_node(NULL, token->value, token->type);
-  current->right = var_node;
-  current = var_node;
-  next(pp); // consume LET
+static Node *parse_let(Token **pp, bool expect_semi) {
+  expect(pp, LET, "expected let");
+  Token *id = expect(pp, IDENTIFIER, "expected identifier");
+  Node *node = init_node(NULL, NULL, 0);
+  node->kind = NK_LetStmt;
+  Node *id_node = init_node(NULL, id->value, IDENTIFIER);
+  node->left = id_node;
+  if (match(pp, ASSIGNMENT)) {
+    Node *expr = parse_expr(pp, 0);
+    node->right = expr;
+  }
+  if (expect_semi)
+    expect(pp, SEMICOLON, "expected semicolon");
+  return node;
+}
 
-  // move past identifier and optional initialization until ';'
-  while(peek(pp)->type != SEMICOLON && peek(pp)->type != END_OF_TOKENS){
+static Node *parse_assign_or_expr(Token **pp) {
+  Token *start = expect(pp, IDENTIFIER, "expected identifier");
+  TokenType t = peek(pp)->type;
+  if (t == ASSIGNMENT || t == PLUS_EQUALS || t == MINUS_EQUALS) {
+    next(pp); // consume operator
+    Node *expr = parse_expr(pp, 0);
+    expect(pp, SEMICOLON, "expected semicolon");
+    Node *node = init_node(NULL, NULL, 0);
+    node->kind = NK_AssignStmt;
+    node->op = t;
+    node->left = init_node(NULL, start->value, IDENTIFIER);
+    node->right = expr;
+    return node;
+  }
+  // not an assignment, treat as expression statement
+  prev(pp); // put identifier back for expression parsing
+  Node *expr = parse_expr(pp, 0);
+  expect(pp, SEMICOLON, "expected semicolon");
+  return expr;
+}
+
+static Node *parse_if_internal(Token **pp, bool consumed_kw) {
+  if (!consumed_kw)
+    expect(pp, IF, "expected if");
+  Node *node = init_node(NULL, NULL, 0);
+  node->kind = NK_IfStmt;
+  expect(pp, OPEN_PAREN, "expected (");
+  Node *cond = parse_expr(pp, 0);
+  expect(pp, CLOSE_PAREN, "expected )");
+  Node *then_block = parse_block(pp);
+  vec_push(&node->children, cond);
+  vec_push(&node->children, then_block);
+  if (match(pp, ELSE_IF)) {
+    Node *elif = parse_if_internal(pp, true);
+    vec_push(&node->children, elif);
+  } else if (match(pp, ELSE)) {
+    Node *else_block = parse_block(pp);
+    vec_push(&node->children, else_block);
+  }
+  return node;
+}
+
+static Node *parse_if(Token **pp) { return parse_if_internal(pp, false); }
+
+static Node *parse_while(Token **pp) {
+  expect(pp, WHILE, "expected while");
+  Node *node = init_node(NULL, NULL, 0);
+  node->kind = NK_WhileStmt;
+  expect(pp, OPEN_PAREN, "expected (");
+  Node *cond = parse_expr(pp, 0);
+  expect(pp, CLOSE_PAREN, "expected )");
+  Node *body = parse_block(pp);
+  vec_push(&node->children, cond);
+  vec_push(&node->children, body);
+  return node;
+}
+
+static Node *parse_for(Token **pp) {
+  expect(pp, FOR, "expected for");
+  Node *node = init_node(NULL, NULL, 0);
+  node->kind = NK_ForStmt;
+  expect(pp, OPEN_PAREN, "expected (");
+  int depth = 1;
+  while (depth > 0) {
+    TokenType tt = peek(pp)->type;
+    if (tt == OPEN_PAREN)
+      depth++;
+    else if (tt == CLOSE_PAREN)
+      depth--;
     next(pp);
   }
-  if(match(pp, SEMICOLON)){
-    // consumed ';'
-  }
-  return current;
+  Node *body = parse_block(pp);
+  vec_push(&node->children, body);
+  return node;
 }
 
-Node *handle_write(Token **pp, Node *current){
-  expect(pp, WRITE, "Invalid Syntax on WRITE");
-  expect(pp, OPEN_PAREN, "Invalid Syntax on OPEN");
-  Token *expr_tok = peek(pp);
-  handle_token_errors("Invalid Syntax on EXP", expr_tok,
-                      expr_tok->type == INT || expr_tok->type == STRING ||
-                      expr_tok->type == IDENTIFIER || expr_tok->type == BOOL);
-  Node *expr_node = init_node(NULL, expr_tok->value, expr_tok->type);
-  next(pp);
-  while(peek(pp)->type != CLOSE_PAREN && peek(pp)->type != END_OF_TOKENS){
+static Node *parse_fn(Token **pp) {
+  expect(pp, FN, "expected fn");
+  Token *id = expect(pp, IDENTIFIER, "expected identifier");
+  Node *node = init_node(NULL, id->value, FN);
+  node->kind = NK_FnDecl;
+  expect(pp, OPEN_PAREN, "expected (");
+  while (peek(pp)->type != CLOSE_PAREN && peek(pp)->type != END_OF_TOKENS)
     next(pp);
-  }
-  expect(pp, CLOSE_PAREN, "Invalid Syntax on CLOSE");
-  expect(pp, SEMICOLON, "Invalid Syntax on SEMI");
-  Node *write_node = init_node(NULL, NULL, WRITE);
-  write_node->left = expr_node;
-  current->right = write_node;
-  current = write_node;
-  return current;
+  expect(pp, CLOSE_PAREN, "expected )");
+  Node *body = parse_block(pp);
+  vec_push(&node->children, body);
+  return node;
 }
 
-Node *handle_if(Token **pp, Node *current){
-  Token *token = peek(pp);
-  Node *cond_node = init_node(NULL, token->value, token->type);
-  current->right = cond_node;
-  current = cond_node;
-  next(pp);
-
-  if(cond_node->type == ELSE){
-    return current;
+static Node *parse_block(Token **pp) {
+  expect(pp, OPEN_CURLY, "expected {");
+  Node *block = init_node(NULL, NULL, 0);
+  block->kind = NK_Block;
+  while (peek(pp)->type != CLOSE_CURLY && peek(pp)->type != END_OF_TOKENS) {
+    Node *stmt = parse_stmt(pp);
+    if (stmt)
+      vec_push(&block->children, stmt);
   }
-
-  expect(pp, OPEN_PAREN, "Invalid Syntax on OPEN");
-  Token *expr_tok = peek(pp);
-  handle_token_errors("Invalid Syntax on EXP", expr_tok,
-                      expr_tok->type == INT || expr_tok->type == STRING ||
-                      expr_tok->type == IDENTIFIER || expr_tok->type == BOOL);
-  Node *expr_node = init_node(NULL, expr_tok->value, expr_tok->type);
-  current->left = expr_node;
-  next(pp);
-  while(peek(pp)->type != CLOSE_PAREN && peek(pp)->type != END_OF_TOKENS){
-    next(pp);
-  }
-  expect(pp, CLOSE_PAREN, "Invalid Syntax on CLOSE");
-  return current;
+  expect(pp, CLOSE_CURLY, "expected }");
+  return block;
 }
 
-Node *handle_while(Token **current_token, Node *current){
-  return handle_if(current_token, current);
+static Node *parse_stmt(Token **pp) {
+  switch (peek(pp)->type) {
+  case WRITE:
+    return parse_write(pp);
+  case EXIT:
+    return parse_exit(pp);
+  case LET:
+    return parse_let(pp, true);
+  case IF:
+    return parse_if(pp);
+  case WHILE:
+    return parse_while(pp);
+  case FOR:
+    return parse_for(pp);
+  case FN:
+    return parse_fn(pp);
+  case OPEN_CURLY:
+    return parse_block(pp);
+  case IDENTIFIER:
+    return parse_assign_or_expr(pp);
+  default: {
+    Node *expr = parse_expr(pp, 0);
+    expect(pp, SEMICOLON, "expected semicolon");
+    return expr;
+  }
+  }
 }
 
-Node *handle_for(Token **pp, Node *current){
-  Token *token = peek(pp);
-  Node *for_node = init_node(NULL, token->value, FOR);
-  current->right = for_node;
-  current = for_node;
-  next(pp);
-  expect(pp, OPEN_PAREN, "Invalid Syntax on OPEN");
-  while(peek(pp)->type != CLOSE_PAREN && peek(pp)->type != END_OF_TOKENS){
-    next(pp);
+Node *parser(Token *tokens) {
+  Token *t = tokens;
+  Token **pp = &t;
+  Node *program = init_node(NULL, NULL, 0);
+  program->kind = NK_Program;
+  Node *block = init_node(NULL, NULL, 0);
+  block->kind = NK_Block;
+  while (peek(pp)->type != END_OF_TOKENS) {
+    Node *stmt = parse_stmt(pp);
+    if (stmt)
+      vec_push(&block->children, stmt);
   }
-  expect(pp, CLOSE_PAREN, "Invalid Syntax on CLOSE");
-  return current;
-}
-
-Node *handle_fn(Token **pp, Node *current){
-  Token *token = peek(pp);
-  Node *fn_node = init_node(NULL, token->value, FN);
-  current->right = fn_node;
-  current = fn_node;
-  next(pp);
-
-  Token *id_tok = expect(pp, IDENTIFIER, "Invalid Syntax on IDENT");
-  Node *identifier_node = init_node(NULL, id_tok->value, IDENTIFIER);
-  current->left = identifier_node;
-
-  expect(pp, OPEN_PAREN, "Invalid Syntax on OPEN");
-  while(peek(pp)->type != CLOSE_PAREN && peek(pp)->type != END_OF_TOKENS){
-    next(pp);
-  }
-  expect(pp, CLOSE_PAREN, "Invalid Syntax on CLOSE");
-  return fn_node;
-}
-Node *parser(Token *tokens){
-  Token *current_token = tokens;
-  Node *root = init_node(NULL, NULL, BEGINNING);
-  Node *current = root;
-  curly_stack *stack = malloc(sizeof(curly_stack));
-  stack->top = -1;
-  if (!push_curly(stack, root)) {
-    printf("ERROR: curly stack overflow\n");
-    exit(1);
-  }
-
-  bool allow_else = false;
-  bool after_if_block = false;
-
-  Token **pp = &current_token;
-
-  while(peek(pp)->type != END_OF_TOKENS){
-    Token *tok = peek(pp);
-    if(current == NULL){
-      break;
-    }
-    switch(tok->type){
-      case LET:
-        if(allow_else && after_if_block){ allow_else=false; after_if_block=false; }
-        current = create_variables(pp, current);
-        break;
-      case FN:
-        if(allow_else && after_if_block){ allow_else=false; after_if_block=false; }
-        current = handle_fn(pp, current);
-        break;
-      case FOR:
-        if(allow_else && after_if_block){ allow_else=false; after_if_block=false; }
-        current = handle_for(pp, current);
-        break;
-      case WHILE:
-        if(allow_else && after_if_block){ allow_else=false; after_if_block=false; }
-        current = handle_while(pp, current);
-        break;
-      case WRITE:
-        if(allow_else && after_if_block){ allow_else=false; after_if_block=false; }
-        current = handle_write(pp, current);
-        break;
-      case EXIT:
-        if(allow_else && after_if_block){ allow_else=false; after_if_block=false; }
-        current = handle_exit_syscall(pp, current);
-        break;
-      case IF:
-        current = handle_if(pp, current);
-        allow_else = true;
-        after_if_block = false;
-        break;
-      case ELSE_IF:
-        if(!(allow_else && after_if_block)){
-          print_error("Unexpected else without matching if", tok->line_num);
-        }
-        current = handle_if(pp, current);
-        allow_else = true;
-        after_if_block = false;
-        break;
-      case ELSE:
-        if(!(allow_else && after_if_block)){
-          print_error("Unexpected else without matching if", tok->line_num);
-        }
-        current = handle_if(pp, current);
-        allow_else = false;
-        after_if_block = false;
-        break;
-      case OPEN_CURLY:
-        if (!push_curly(stack, current)) {
-          printf("ERROR: curly stack overflow\n");
-          exit(1);
-        }
-        next(pp);
-        break;
-      case CLOSE_CURLY: {
-        Node *popped = pop_curly(stack);
-        if(popped == NULL){
-          printf("ERROR: Expected Open Parenthesis!\n");
-          exit(1);
-        }
-        if(allow_else){ after_if_block = true; }
-        next(pp);
-        break; }
-      case IDENTIFIER:
-        if(allow_else && after_if_block){ allow_else=false; after_if_block=false; }
-        current = create_variable_reusage(pp, current);
-        break;
-      default:
-        if(allow_else && after_if_block){ allow_else=false; after_if_block=false; }
-        next(pp);
-        break;
-    }
-  }
-  return root;
+  vec_push(&program->children, block);
+  return program;
 }
 
 void free_tree(Node *node) {
