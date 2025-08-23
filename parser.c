@@ -96,13 +96,28 @@ static Node *parse_expr(Token **pp, int minbp); // forward declaration
 static Node *nud(Token **pp) {
   Token *tok = peek(pp);
   switch (tok->type) {
-  case INT:
-  case STRING:
-  case BOOL:
+  case INT: {
+    next(pp);
+    Node *node = init_node(NULL, tok->value, tok->type);
+    node->kind = NK_Int;
+    return node;
+  }
+  case STRING: {
+    next(pp);
+    Node *node = init_node(NULL, tok->value, tok->type);
+    node->kind = NK_String;
+    return node;
+  }
+  case BOOL: {
+    next(pp);
+    Node *node = init_node(NULL, tok->value, tok->type);
+    node->kind = NK_Bool;
+    return node;
+  }
   case IDENTIFIER: {
     next(pp);
     Node *node = init_node(NULL, tok->value, tok->type);
-    node->kind = NK_Literal;
+    node->kind = NK_Identifier;
     return node;
   }
   case OPEN_PAREN: {
@@ -195,6 +210,7 @@ static Node *parse_let(Token **pp, bool expect_semi) {
   Node *node = init_node(NULL, NULL, 0);
   node->kind = NK_LetStmt;
   Node *id_node = init_node(NULL, id->value, IDENTIFIER);
+  id_node->kind = NK_Identifier;
   node->left = id_node;
   if (match(pp, ASSIGNMENT)) {
     Node *expr = parse_expr(pp, 0);
@@ -215,7 +231,9 @@ static Node *parse_assign_or_expr(Token **pp) {
     Node *node = init_node(NULL, NULL, 0);
     node->kind = NK_AssignStmt;
     node->op = t;
-    node->left = init_node(NULL, start->value, IDENTIFIER);
+    Node *id_node = init_node(NULL, start->value, IDENTIFIER);
+    id_node->kind = NK_Identifier;
+    node->left = id_node;
     node->right = expr;
     return node;
   }
