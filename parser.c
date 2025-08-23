@@ -87,128 +87,109 @@ void print_error(char *error_type, size_t line_number){
   exit(1);
 }
 
-Node *parse_expression(Token **pp){
-  Token *current_token = peek(pp);
-  Node *expr_node = init_node(NULL, current_token->value, current_token->type);
-  next(&current_token);
-  if(!is_operator(peek(&current_token)->type)){
-    *pp = current_token;
-    return expr_node;
-  }
-  *pp = current_token;
-  return expr_node;
+// --- expression parsing (Pratt parser) ------------------------------------
+
+// Left binding power table for operators
+static const int lbp_table[END_OF_TOKENS + 1] = {
+    [ASSIGNMENT] = 10,
+    [PLUS_EQUALS] = 10,
+    [MINUS_EQUALS] = 10,
+    [OR] = 20,
+    [AND] = 30,
+    [EQUALS] = 40,
+    [NOT_EQUALS] = 40,
+    [LESS] = 50,
+    [LESS_EQUALS] = 50,
+    [GREATER] = 50,
+    [GREATER_EQUALS] = 50,
+    [PLUS] = 60,
+    [DASH] = 60,
+    [STAR] = 70,
+    [SLASH] = 70,
+    [PERCENT] = 70,
+    [NOT] = 80,
+    [PLUS_PLUS] = 80,
+    [MINUS_MINUS] = 80,
+};
+
+static int lbp(TokenType type) {
+  if (type < 0 || type > END_OF_TOKENS)
+    return 0;
+  return lbp_table[type];
 }
 
-void generate_operation_nodes(Token **pp, Node *current_node){
-  Token *current_token = peek(pp);
-  Node *oper_node = init_node(NULL, current_token->value, current_token->type);
-  current_node->left->left = oper_node;
-  current_node = oper_node;
-  prev(&current_token);
-  if(current_token->type == INT){
-    Node *expr_node = init_node(NULL, current_token->value, INT);
-    current_node->left = expr_node;
-  } else if(current_token->type == IDENTIFIER){
-    Node *identifier_node = init_node(NULL, current_token->value, IDENTIFIER);
-    current_node->left = identifier_node;
-  } else {
-    printf("ERROR: expected int or identifier\n");
-    exit(1);
+static Node *parse_expr(Token **pp, int minbp); // forward declaration
+
+static Node *nud(Token **pp) {
+  Token *tok = peek(pp);
+  switch (tok->type) {
+  case INT:
+  case STRING:
+  case BOOL:
+  case IDENTIFIER: {
+    next(pp);
+    Node *node = init_node(NULL, tok->value, tok->type);
+    node->kind = NK_Literal;
+    return node;
   }
-  next(&current_token);
-  next(&current_token);
-  while(current_token->type == INT || current_token->type == IDENTIFIER || is_operator(current_token->type)){
-    if(current_token->type == INT || current_token->type == IDENTIFIER){
-      if((current_token->type != INT && current_token->type != IDENTIFIER) || current_token == NULL){
-        printf("Syntax Error hERE\n");
-        exit(1);
-      }
-      next(&current_token);
-      if(!is_operator(current_token->type)){
-        prev(&current_token);
-        if(current_token->type == INT){
-          Node *second_expr_node = init_node(NULL, current_token->value, INT);
-          current_node->right = second_expr_node;
-        } else if(current_token->type == IDENTIFIER){
-          Node *second_identifier_node = init_node(NULL, current_token->value, IDENTIFIER);
-          current_node->right = second_identifier_node;
-        } else {
-          printf("ERROR: Expected Integer or Identifier\n");
-          exit(1);
-        }
-      }
-    }
-    if(is_operator(current_token->type)){
-      Node *next_oper_node = init_node(NULL, current_token->value, current_token->type);
-      current_node->right = next_oper_node;
-      current_node = next_oper_node;
-      prev(&current_token);
-      if(current_token->type == INT){
-        Node *second_expr_node = init_node(NULL, current_token->value, INT);
-        current_node->left = second_expr_node;
-      } else if(current_token->type == IDENTIFIER){
-        Node *second_identifier_node = init_node(NULL, current_token->value, IDENTIFIER);
-        current_node->left = second_identifier_node;
-      } else {
-        printf("ERROR: Expected IDENTIFIER or INT\n");
-        exit(1);
-      }
-      next(&current_token);
-    }
-    next(&current_token);
+  case OPEN_PAREN: {
+    next(pp);
+    Node *expr = parse_expr(pp, 0);
+    expect(pp, CLOSE_PAREN, "Invalid Syntax on CLOSE");
+    return expr;
   }
-  *pp = current_token;
+  case NOT:
+  case DASH:
+  case PLUS:
+  case PLUS_PLUS:
+  case MINUS_MINUS: {
+    TokenType op = tok->type;
+    next(pp);
+    Node *right = parse_expr(pp, 80);
+    Node *node = init_node(NULL, NULL, 0);
+    node->kind = NK_Unary;
+    node->op = op;
+    node->left = right;
+    return node;
+  }
+  default:
+    print_error("Unexpected token", tok->line_num);
+    return NULL;
+  }
+}
+
+static Node *parse_expr(Token **pp, int minbp) {
+  Node *left = nud(pp);
+  for (;;) {
+    Token *tok = peek(pp);
+    int lb = lbp(tok->type);
+    if (lb <= minbp)
+      break;
+    TokenType op = tok->type;
+    next(pp);
+    Node *right = parse_expr(pp, lb);
+    Node *node = init_node(NULL, NULL, 0);
+    node->kind = NK_Binary;
+    node->op = op;
+    node->left = left;
+    node->right = right;
+    left = node;
+  }
+  return left;
 }
 
 Node *handle_exit_syscall(Token **pp, Node *current){
-    Token *current_token = peek(pp);
-    Node *exit_node = init_node(NULL, current_token->value, EXIT);
-    current->right = exit_node;
-    current = exit_node;
-    next(&current_token);
+  Token *tok = expect(pp, EXIT, "Invalid Syntax on EXIT");
+  Node *exit_node = init_node(NULL, tok->value, EXIT);
+  current->right = exit_node;
+  current = exit_node;
 
-    if(current_token->type == END_OF_TOKENS){
-      print_error("Invalid Syntax on OPEN", current_token->line_num);
-    }
-    if(current_token->type == OPEN_PAREN){
-      next(&current_token);
-      if(current_token->type == END_OF_TOKENS){
-        print_error("Invalid Syntax on INT", current_token->line_num);
-      }
-      if(current_token->type == INT || current_token->type == IDENTIFIER){
-        next(&current_token);
-        if(is_operator(current_token->type) && current_token != NULL){
-          generate_operation_nodes(&current_token, current);
-          prev(&current_token);
-        } else {
-          prev(&current_token);
-          Node *expr_node = init_node(NULL, current_token->value, current_token->type);
-          current->left = expr_node;
-        }
-        next(&current_token);
-        if(current_token->type == END_OF_TOKENS){
-          print_error("Invalid Syntax on cLOSE", current_token->line_num);
-        }
-        if(current_token->type == CLOSE_PAREN && current_token->type != END_OF_TOKENS){
-          next(&current_token);
-          if(current_token->type == END_OF_TOKENS){
-            print_error("Invalid Syntax on SEMI", current_token->line_num);
-          }
-          if(current_token->type == SEMICOLON){
-            next(&current_token);
-          } else {
-            print_error("Invalid Syntax on SEMI", current_token->line_num);
-          }
-        } else {
-            print_error("Invalid Syntax on CLOSE", current_token->line_num);
-        }
-      } else {
-        print_error("Invalid Syntax INT", current_token->line_num);
-      }
-  } else {
-    print_error("Invalid Syntax OPEN", current_token->line_num);
-  }
-  *pp = current_token;
+  expect(pp, OPEN_PAREN, "Invalid Syntax on OPEN");
+  Node *expr = parse_expr(pp, 0);
+  exit_node->left = expr;
+  expect(pp, CLOSE_PAREN, "Invalid Syntax on CLOSE");
+  expect(pp, SEMICOLON, "Invalid Syntax on SEMI");
+
   return current;
 }
 
@@ -219,135 +200,9 @@ void handle_token_errors(char *error_text, Token *current_token, bool isType){
 }
 
 Node *create_variable_reusage(Token **pp, Node *current){
-  Token *current_token = peek(pp);
-  Node *main_identifier_node = init_node(NULL, current_token->value, IDENTIFIER);
-  current->left = main_identifier_node;
-  current = main_identifier_node;
-  next(&current_token);
-
-  handle_token_errors("Invalid syntax after idenfitier", current_token, is_operator(current_token->type));
-
-  if(is_operator(current_token->type)){
-    if(current_token->type == ASSIGNMENT){
-      print_error("Invalid Variable Syntax on =", current_token->line_num);
-    }
-    Node *equals_node = init_node(NULL, current_token->value, current_token->type);
-    current->left = equals_node;
-    current = equals_node;
-    next(&current_token);
-  }
-  if(current_token->type == END_OF_TOKENS){
-    print_error("Invalid Syntax After Equals", current_token->line_num);
-  }
-
-  next(&current_token);
-  if(is_operator(current_token->type)){
-    Node *oper_node = init_node(NULL, current_token->value, current_token->type);
-    current->left = oper_node;
-    current = oper_node;
-    prev(&current_token);
-    if(current_token->type == INT){
-      Node *expr_node = init_node(NULL, current_token->value, INT);
-      oper_node->left = expr_node;
-      next(&current_token);
-      next(&current_token);
-    } else if(current_token->type == IDENTIFIER){
-      Node *identifier_node = init_node(NULL, current_token->value, IDENTIFIER);
-      oper_node->left = identifier_node;
-      next(&current_token);
-      next(&current_token);
-    } else {
-      print_error("ERROR: Expected IDENTIFIER or INT", current_token->line_num);
-    }
-    next(&current_token);
-
-    if(is_operator(current_token->type)){
-      Node *oper_node2 = init_node(NULL, current_token->value, current_token->type);
-      current->right = oper_node2;
-      current = oper_node2;
-      int operation = 1;
-      prev(&current_token);
-      prev(&current_token);
-      while(operation){
-        next(&current_token);
-        if(current_token->type == INT){
-          Node *expr_node = init_node(NULL, current_token->value, INT);
-          current->left = expr_node;
-        } else if(current_token->type == IDENTIFIER){
-          Node *identifier_node = init_node(NULL, current_token->value, IDENTIFIER);
-          current->left = identifier_node;
-        } else {
-          print_error("ERROR: Unexpected Token\n", current_token->line_num);
-          exit(1);
-        }
-        next(&current_token);
-        if(is_operator(current_token->type)){
-          next(&current_token);
-          next(&current_token);
-          if(!is_operator(current_token->type)){
-            prev(&current_token);
-            if(current_token->type == INT){
-              Node *expr_node = init_node(NULL, current_token->value, INT);
-              current->right = expr_node;
-              next(&current_token);
-            } else if(current_token->type == IDENTIFIER){
-              Node *identifier_node = init_node(NULL, current_token->value, IDENTIFIER);
-              current->right = identifier_node;
-              next(&current_token);
-            } else {
-              printf("ERROR: UNRECOGNIZED TOKEN!\n");
-              exit(1);
-            }
-            operation = 0;
-          } else {
-            prev(&current_token);
-            prev(&current_token);
-            Node *oper_node3 = init_node(NULL, current_token->value, current_token->type);
-            current->right = oper_node3;
-            current = oper_node3;
-          }
-        } else {
-          operation = 0;
-        }
-      }
-    } else {
-      prev(&current_token);
-      if(current_token->type == INT){
-        Node *expr_node = init_node(NULL, current_token->value, INT);
-        oper_node->right = expr_node;
-      } else if(current_token->type == IDENTIFIER){
-        Node *identifier_node = init_node(NULL, current_token->value, IDENTIFIER);
-        oper_node->right = identifier_node;
-      } else if(current_token->type == STRING){
-        Node *string_node = init_node(NULL, current_token->value, STRING);
-        oper_node->right = string_node;
-      }
-      next(&current_token);
-    }
-  } else {
-    prev(&current_token);
-    if(current_token->type == INT){
-      Node *expr_node = init_node(NULL, current_token->value, INT);
-      current->left = expr_node;
-      next(&current_token);
-    } else if(current_token->type == IDENTIFIER){
-      Node *identifier_node = init_node(NULL, current_token->value, IDENTIFIER);
-      current->left = identifier_node;
-      next(&current_token);
-    } else if(current_token->type == STRING){
-      Node *string_node = init_node(NULL, current_token->value, STRING);
-      current->left = string_node;
-      next(&current_token);
-    }
-  }
-  handle_token_errors("Invalid Syntax After Expression", current_token, is_separator(current_token->type));
-
-  if(current_token->type == SEMICOLON){
-    next(&current_token);
-  }
-
-  current = main_identifier_node;
-  *pp = current_token;
+  Node *expr = parse_expr(pp, 0);
+  expect(pp, SEMICOLON, "Invalid Syntax After Expression");
+  current->right = expr;
   return current;
 }
 
