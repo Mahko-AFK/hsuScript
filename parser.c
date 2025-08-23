@@ -3,17 +3,10 @@
 #include <string.h>
 #include <ctype.h>
 
-#include "lexer.h"
+#include "parser.h"
 #include "tools.h"
 
 #define MAX_CURLY_STACK_LENGTH 64
-
-typedef struct Node {
-  char *value;
-  TokenType type;
-  struct Node *right;
-  struct Node *left;
-} Node;
 
 typedef struct {
   Node *content[MAX_CURLY_STACK_LENGTH];
@@ -35,35 +28,99 @@ Node *pop_curly(curly_stack *stack){
   return result;
 }
 
-void print_tree(Node *node, int indent, char *identifier) {
-    if (node == NULL) {
-        return;
-    }
-
-    for (int i = 0; i < indent; i++) {
-        printf(" ");
-    }
-    printf("%s -> %s\n", identifier, node->value ? node->value : "NULL");
-
-    indent += 4;
-
-    if (node->left) {
-        print_tree(node->left, indent, "├── left");
-    }
-
-    if (node->right) {
-        print_tree(node->right, indent, "└── right");
-    }
+// --- simple vector helpers -------------------------------------------------
+static void vec_init(Vec *v) {
+  v->items = NULL;
+  v->len = 0;
+  v->cap = 0;
 }
 
+static void vec_push(Vec *v, Node *n) {
+  if (v->len == v->cap) {
+    v->cap = v->cap ? v->cap * 2 : 4;
+    v->items = realloc(v->items, v->cap * sizeof(Node *));
+  }
+  v->items[v->len++] = n;
+}
+
+// --- helper constructors ---------------------------------------------------
+static Node *alloc_node(NodeKind kind) {
+  Node *n = calloc(1, sizeof(Node));
+  n->kind = kind;
+  vec_init(&n->children);
+  return n;
+}
+
+Node *make_program(void) { return alloc_node(NODE_PROGRAM); }
+
+Node *make_block(void) { return alloc_node(NODE_BLOCK); }
+
+Node *make_binary(TokenType op, Node *lhs, Node *rhs) {
+  Node *n = alloc_node(NODE_BINARY_OP);
+  n->op = op;
+  n->left = lhs;
+  n->right = rhs;
+  return n;
+}
+
+Node *make_write(Node *expr) {
+  Node *n = alloc_node(NODE_WRITE_STMT);
+  if (expr)
+    vec_push(&n->children, expr);
+  return n;
+}
+
+Node *make_literal(TokenType type, const char *value) {
+  Node *n = alloc_node(NODE_LITERAL);
+  n->type = type;
+  if (value)
+    n->value = strdup(value);
+  return n;
+}
+
+// Backwards compatible initializer used in the existing parser logic.  It
+// now makes sure to populate the new fields (kind/op/children) while still
+// returning a freshly allocated node.
 Node *init_node(Node *node, char *value, TokenType type){
-  node = malloc(sizeof(Node));
-  node->value = malloc(sizeof(char) * 2);
-  node->type = (int)type;
-  node->value = value;
-  node->left = NULL;
-  node->right = NULL;
+  (void)node; // parameter unused but kept for compatibility with callers
+  node = make_literal(type, value);
+  if (is_operator(type)) {
+    node->kind = NODE_BINARY_OP;
+    node->op = type;
+  } else if (type == WRITE) {
+    node->kind = NODE_WRITE_STMT;
+  } else if (type == EXIT) {
+    node->kind = NODE_EXIT_STMT;
+  } else if (type == OPEN_CURLY || type == CLOSE_CURLY) {
+    node->kind = NODE_BLOCK;
+  }
   return node;
+}
+
+// --- tree printer ----------------------------------------------------------
+void print_tree(Node *node, int indent, char *identifier, int is_last) {
+  if (!node)
+    return;
+
+  for (int i = 0; i < indent; i++) {
+    printf(" ");
+  }
+  printf("%s", identifier);
+  if (node->value)
+    printf(" -> %s", node->value);
+  printf("\n");
+
+  indent += 4;
+  if (node->left)
+    print_tree(node->left, indent, "left", 0);
+  if (node->right)
+    print_tree(node->right, indent, "right", 0);
+  for (size_t i = 0; i < node->children.len; i++) {
+    char buf[32];
+    snprintf(buf, sizeof(buf), "child[%zu]", i);
+    print_tree(node->children.items[i], indent, buf,
+               i == node->children.len - 1);
+  }
 }
 
 void print_error(char *error_type, size_t line_number){
@@ -529,46 +586,31 @@ Node *create_variables(Token *current_token, Node *current){
 }
 
 Node *handle_write(Token **current_token, Node *current){
-  Token *token = *current_token;
+  Token *token = *current_token; // currently at WRITE
 
-  Node *write_node = malloc(sizeof(Node));
-  write_node = init_node(write_node, token->value, WRITE);
-  current->right = write_node;
-  current = write_node;
-  token++;
-
+  token++; // consume WRITE
   handle_token_errors("Invalid Syntax on OPEN", token, token->type == OPEN_PAREN);
-  Node *open_paren_node = malloc(sizeof(Node));
-  open_paren_node = init_node(open_paren_node, token->value, OPEN_PAREN);
-  current->left = open_paren_node;
-  token++;
 
+  token++; // consume '('
   handle_token_errors("Invalid Syntax on EXP", token,
-                      token->type == INT ||
-                      token->type == STRING ||
-                      token->type == IDENTIFIER ||
-                      token->type == BOOL);
-  Node *expr_node = malloc(sizeof(Node));
-  expr_node = init_node(expr_node, token->value, token->type);
-  open_paren_node->left = expr_node;
-  token++;
+                      token->type == INT || token->type == STRING ||
+                      token->type == IDENTIFIER || token->type == BOOL);
+  Node *expr_node = init_node(NULL, token->value, token->type);
 
+  token++; // move past expression
   while(token->type != CLOSE_PAREN && token->type != END_OF_TOKENS){
     token++;
   }
   handle_token_errors("Invalid Syntax on CLOSE", token, token->type == CLOSE_PAREN);
-  Node *close_paren_node = malloc(sizeof(Node));
-  close_paren_node = init_node(close_paren_node, token->value, CLOSE_PAREN);
-  open_paren_node->right = close_paren_node;
-  token++;
+  token++; // consume ')'
 
   handle_token_errors("Invalid Syntax on SEMI", token, token->type == SEMICOLON);
-  Node *semi_node = malloc(sizeof(Node));
-  semi_node = init_node(semi_node, token->value, SEMICOLON);
-  current->right = semi_node;
-  current = semi_node;
+  Node *write_node = make_write(expr_node);
+  current->right = write_node;
+  current = write_node;
 
-  *current_token = token;
+  token++; // consume ';'
+  *current_token = token - 1; // parser loop will increment after return
   return current;
 }
 
@@ -700,16 +742,15 @@ Node *handle_fn(Token *current_token, Node *current){
 }
 Node *parser(Token *tokens){
   Token *current_token = &tokens[0];
-  Node *root = malloc(sizeof(Node));
-  root = init_node(root, "PROGRAM", BEGINNING);
+  Node *root = make_program();
 
   Node *current = root;
 
-  Node *open_curly = malloc(sizeof(Node));
-  //Node *close_curly = malloc(sizeof(Node));
+  Node *open_curly = NULL;
 
   curly_stack *stack = malloc(sizeof(curly_stack));
   stack->top = -1;
+  push_curly(stack, root); // root acts as the initial block
 
   bool allow_else = false;
   bool after_if_block = false;
@@ -724,11 +765,12 @@ Node *parser(Token *tokens){
       case FOR:
       case WHILE:
       case WRITE:
-      case EXIT:
+      case EXIT: {
         if(allow_else && after_if_block){
           allow_else = false;
           after_if_block = false;
         }
+        Node *prev = current;
         if(current_token->type == LET){
           current = create_variables(current_token, current);
         } else if(current_token->type == FN){
@@ -737,12 +779,14 @@ Node *parser(Token *tokens){
           current = handle_for(&current_token, current);
         } else if(current_token->type == WHILE){
           current = handle_while(&current_token, current);
-          } else if(current_token->type == WRITE){
-            current = handle_write(&current_token, current);
-          } else if(current_token->type == EXIT){
-            current = handle_exit_syscall(current_token, current);
-          }
+        } else if(current_token->type == WRITE){
+          current = handle_write(&current_token, current);
+        } else if(current_token->type == EXIT){
+          current = handle_exit_syscall(current_token, current);
+        }
+        vec_push(&peek_curly(stack)->children, prev->right);
         break;
+      }
       case IF:
         current = handle_if(&current_token, current);
         allow_else = true;
@@ -774,21 +818,18 @@ Node *parser(Token *tokens){
       case COMMA:
         // structural tokens do not reset allow_else
         if(current_token->type == OPEN_CURLY){
-          Token *temp = current_token;
-          open_curly = init_node(open_curly, temp->value, OPEN_CURLY);
+          open_curly = make_block();
           current->left = open_curly;
-          current = open_curly;
           push_curly(stack, open_curly);
-          current = peek_curly(stack);
+          current = open_curly;
         }
         if(current_token->type == CLOSE_CURLY){
-          Node *close_curly = malloc(sizeof(Node));
+          Node *close_curly = init_node(NULL, current_token->value, current_token->type);
           open_curly = pop_curly(stack);
           if(open_curly == NULL){
             printf("ERROR: Expected Open Parenthesis!\n");
             exit(1);
           }
-          close_curly = init_node(close_curly, current_token->value, current_token->type);
           current->right = close_curly;
           current = close_curly;
           if(allow_else){
