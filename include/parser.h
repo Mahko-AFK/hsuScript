@@ -18,7 +18,10 @@ typedef enum {
   NK_ExitStmt,
   NK_Unary,
   NK_Binary,
-  NK_Literal,
+  NK_Int,
+  NK_String,
+  NK_Bool,
+  NK_Identifier,
 } NodeKind;
 
 // Forward declarations

@@ -65,29 +65,24 @@ static void sem_error(const char *msg, const char *name) {
   exit(1);
 }
 
-static Type *token_to_type(TokenType t) {
-  switch (t) {
-  case INT:    return type_int();
-  case STRING: return type_string();
-  case BOOL:   return type_bool();
-  default:     return type_unknown();
-  }
-}
-
 Type *sem_expr(Node *node, Scope *scope) {
   if (!node) return type_void();
   switch (node->kind) {
-  case NK_Literal:
-    if (node->type == IDENTIFIER) {
-      Type *t = scope_lookup(scope, node->value);
-      if (!t) sem_error("undeclared identifier", node->value);
-      node->ty = t;
-      return t;
-    } else {
-      Type *t = token_to_type(node->type);
-      node->ty = t;
-      return t;
-    }
+  case NK_Int:
+    node->ty = type_int();
+    return node->ty;
+  case NK_String:
+    node->ty = type_string();
+    return node->ty;
+  case NK_Bool:
+    node->ty = type_bool();
+    return node->ty;
+  case NK_Identifier: {
+    Type *t = scope_lookup(scope, node->value);
+    if (!t) sem_error("undeclared identifier", node->value);
+    node->ty = t;
+    return t;
+  }
   case NK_Unary: {
     Type *rt = sem_expr(node->left, scope);
     switch (node->op) {
