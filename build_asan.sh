@@ -4,4 +4,3 @@ gcc -Iinclude -c main.c lexer.c parser.c tools.c codegen.c -fsanitize=address -g
 gcc -Iinclude main.o lexer.o parser.o tools.o codegen.o -o build/hsu_asan -fsanitize=address -static-libasan || { echo "Linking failed"; exit 1; }
 rm -f main.o lexer.o parser.o tools.o codegen.o
 echo "Build completed successfully!"
-
