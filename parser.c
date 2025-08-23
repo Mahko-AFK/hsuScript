@@ -8,6 +8,8 @@
 #include "tools.h"
 #include "token_helpers.h"
 
+#define PREC_PREFIX 90
+
 // --- helper constructors ---------------------------------------------------
 // Allocate and initialize a node. `node` is ignored and kept only for
 // compatibility with existing call sites.
@@ -80,9 +82,9 @@ static const int lbp_table[END_OF_TOKENS + 1] = {
     [STAR] = 70,
     [SLASH] = 70,
     [PERCENT] = 70,
-    [NOT] = 80,
-    [PLUS_PLUS] = 80,
-    [MINUS_MINUS] = 80,
+    [NOT] = PREC_PREFIX,
+    [PLUS_PLUS] = PREC_PREFIX,
+    [MINUS_MINUS] = PREC_PREFIX,
 };
 
 static int lbp(TokenType type) {
@@ -133,7 +135,7 @@ static Node *nud(Token **pp) {
   case MINUS_MINUS: {
     TokenType op = tok->type;
     next(pp);
-    Node *right = parse_expr(pp, 80);
+    Node *right = parse_expr(pp, PREC_PREFIX);
     Node *node = init_node(NULL, NULL, 0);
     node->kind = NK_Unary;
     node->op = op;
@@ -155,7 +157,10 @@ static Node *parse_expr(Token **pp, int minbp) {
       break;
     TokenType op = tok->type;
     next(pp);
-    Node *right = parse_expr(pp, lb);
+    int rb = (op == ASSIGNMENT || op == PLUS_EQUALS || op == MINUS_EQUALS)
+                 ? lb - 1
+                 : lb;
+    Node *right = parse_expr(pp, rb);
     Node *node = init_node(NULL, NULL, 0);
     node->kind = NK_Binary;
     node->op = op;
