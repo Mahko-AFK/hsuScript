@@ -231,11 +231,11 @@ int sem_block(Node *block, Scope *scope) {
 }
 
 static int sem_if(Node *ifnode, Scope *scope) {
-  if (sem_expr(ifnode->children.items[0], scope) != type_bool())
+  if (sem_expr(ifnode->left, scope) != type_bool())
     sem_error("if condition must be boolean", NULL);
-  int exit_then = sem_block(ifnode->children.items[1], scope);
-  if (ifnode->children.len > 2) {
-    Node *alt = ifnode->children.items[2];
+  int exit_then = sem_block(ifnode->right, scope);
+  if (ifnode->children.len > 0) {
+    Node *alt = ifnode->children.items[0];
     int exit_alt;
     if (alt->kind == NK_IfStmt)
       exit_alt = sem_if(alt, scope);
