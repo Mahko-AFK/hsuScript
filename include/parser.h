@@ -56,6 +56,6 @@ Node *init_node(Node *node, const char *value, TokenType type);
 void free_tree(Node *node);
 
 Node *parser(Token *tokens);
-void print_tree(Node *node, int indent, char *identifier, int is_last);
+void print_tree(Node *node, int indent);
 
 #endif

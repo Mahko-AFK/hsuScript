@@ -10,6 +10,92 @@
 
 #define PREC_PREFIX 90
 
+static const char *kind_name(NodeKind kind) {
+  switch (kind) {
+  case NK_Program:
+    return "Program";
+  case NK_Block:
+    return "Block";
+  case NK_FnDecl:
+    return "FnDecl";
+  case NK_ExprStmt:
+    return "ExprStmt";
+  case NK_LetStmt:
+    return "LetStmt";
+  case NK_AssignStmt:
+    return "AssignStmt";
+  case NK_IfStmt:
+    return "IfStmt";
+  case NK_WhileStmt:
+    return "WhileStmt";
+  case NK_ForStmt:
+    return "ForStmt";
+  case NK_WriteStmt:
+    return "WriteStmt";
+  case NK_ExitStmt:
+    return "ExitStmt";
+  case NK_Unary:
+    return "Unary";
+  case NK_Binary:
+    return "Binary";
+  case NK_Int:
+    return "Int";
+  case NK_String:
+    return "String";
+  case NK_Bool:
+    return "Bool";
+  case NK_Identifier:
+    return "Identifier";
+  default:
+    return "Unknown";
+  }
+}
+
+static const char *op_name(TokenType type) {
+  switch (type) {
+  case ASSIGNMENT:
+    return "=";
+  case PLUS_EQUALS:
+    return "+=";
+  case MINUS_EQUALS:
+    return "-=";
+  case OR:
+    return "||";
+  case AND:
+    return "&&";
+  case EQUALS:
+    return "==";
+  case NOT_EQUALS:
+    return "!=";
+  case LESS:
+    return "<";
+  case LESS_EQUALS:
+    return "<=";
+  case GREATER:
+    return ">";
+  case GREATER_EQUALS:
+    return ">=";
+  case PLUS:
+    return "+";
+  case DASH:
+    return "-";
+  case STAR:
+    return "*";
+  case SLASH:
+    return "/";
+  case PERCENT:
+    return "%";
+  case NOT:
+    return "!";
+  case PLUS_PLUS:
+    return "++";
+  case MINUS_MINUS:
+    return "--";
+  default:
+    return "?";
+  }
+}
+
 // --- helper constructors ---------------------------------------------------
 // Allocate and initialize a node. `node` is ignored and kept only for
 // compatibility with existing call sites.
@@ -32,41 +118,31 @@ Node *init_node(Node *node, const char *value, TokenType type) {
 }
 
 // --- tree printer ----------------------------------------------------------
-void print_tree(Node *node, int indent, char *identifier, int is_last) {
+void print_tree(Node *node, int indent) {
   if (!node)
     return;
 
-  for (int i = 0; i < indent; i++) {
+  for (int i = 0; i < indent; i++)
     printf(" ");
-  }
-  printf("%s", identifier);
+
+  printf("%s", kind_name(node->kind));
+
+  if (node->op)
+    printf(" op=%s", op_name(node->op));
+
   if (node->value)
-    printf(" -> %s", node->value);
+    printf(" value=%s", node->value);
+
   printf("\n");
 
   indent += 4;
-  if (node->kind == NK_IfStmt) {
-    if (node->left)
-      print_tree(node->left, indent, "cond", 0);
-    if (node->right)
-      print_tree(node->right, indent, "then", 0);
-    if (node->children.len > 0)
-      print_tree(node->children.items[0], indent, "else", 1);
-  } else if (node->kind == NK_ExprStmt) {
-    if (node->left)
-      print_tree(node->left, indent, "expr", 1);
-  } else {
-    if (node->left)
-      print_tree(node->left, indent, "left", 0);
-    if (node->right)
-      print_tree(node->right, indent, "right", 0);
-    for (size_t i = 0; i < node->children.len; i++) {
-      char buf[32];
-      snprintf(buf, sizeof(buf), "child[%zu]", i);
-      print_tree(node->children.items[i], indent, buf,
-                 i == node->children.len - 1);
-    }
-  }
+
+  if (node->left)
+    print_tree(node->left, indent);
+  if (node->right)
+    print_tree(node->right, indent);
+  for (size_t i = 0; i < node->children.len; i++)
+    print_tree(node->children.items[i], indent);
 }
 
 void print_error(char *error_type, size_t line_number){

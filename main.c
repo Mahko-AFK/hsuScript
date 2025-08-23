@@ -33,7 +33,7 @@ int main(int argc, char *argv[]) {
   Node *root = parser(tokens);
 
   printf("Printing AST (Abstract Syntax Tree):\n");
-  print_tree(root, 0, "Root", 0);
+  print_tree(root, 0);
 
   sem_program(root);
 
