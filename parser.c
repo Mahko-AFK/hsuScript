@@ -14,15 +14,22 @@ typedef struct {
 } curly_stack;
 
 Node *peek_curly(curly_stack *stack){
+  if (stack->top < 0)
+    return NULL;
   return stack->content[stack->top];
 }
 
-void push_curly(curly_stack *stack, Node *element){
+bool push_curly(curly_stack *stack, Node *element){
+  if (stack->top + 1 >= MAX_CURLY_STACK_LENGTH)
+    return false;
   stack->top++;
   stack->content[stack->top] = element;
+  return true;
 }
 
 Node *pop_curly(curly_stack *stack){
+  if (stack->top < 0)
+    return NULL;
   Node *result = stack->content[stack->top];
   stack->top--;
   return result;
@@ -638,7 +645,10 @@ Node *parser(Token *tokens){
 
   curly_stack *stack = malloc(sizeof(curly_stack));
   stack->top = -1;
-  push_curly(stack, root); // root acts as the initial block
+  if (!push_curly(stack, root)) { // root acts as the initial block
+    printf("ERROR: curly stack overflow\n");
+    exit(1);
+  }
 
   bool allow_else = false;
   bool after_if_block = false;
@@ -707,7 +717,10 @@ Node *parser(Token *tokens){
         if(current_token->type == OPEN_CURLY){
           open_curly = init_node(NULL, current_token->value, current_token->type);
           current->left = open_curly;
-          push_curly(stack, open_curly);
+          if (!push_curly(stack, open_curly)) {
+            printf("ERROR: curly stack overflow\n");
+            exit(1);
+          }
           current = open_curly;
         }
         if(current_token->type == CLOSE_CURLY){
