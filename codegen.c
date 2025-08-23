@@ -16,11 +16,13 @@ static void emit_exit(Node *node, FILE *out) {
 
 static void emit_node(Node *node, FILE *out) {
     if (!node) return;
-    if (node->type == EXIT) {
+    if (node->kind == NK_ExitStmt) {
         emit_exit(node, out);
     }
     emit_node(node->left, out);
     emit_node(node->right, out);
+    for (size_t i = 0; i < node->children.len; i++)
+        emit_node(node->children.items[i], out);
 }
 
 void generate_code(Node *root, const char *filename) {
