@@ -4,17 +4,15 @@
 
 #include "lexer.h"
 
-// Kinds of AST nodes that may appear in the syntax tree.  The
-// enumeration purposefully covers high level program structure
-// (program and block), different statement kinds, literals and
-// generic operators.
+// Kinds of AST nodes that may appear in the syntax tree.
 typedef enum {
-  NODE_PROGRAM,
-  NODE_BLOCK,
-  NODE_WRITE_STMT,
-  NODE_EXIT_STMT,
-  NODE_BINARY_OP,
-  NODE_LITERAL,
+  NK_Program,
+  NK_Block,
+  NK_WriteStmt,
+  NK_ExitStmt,
+  NK_Unary,
+  NK_Binary,
+  NK_Literal,
 } NodeKind;
 
 // Forward declaration so we can reference Node inside Vec before the
