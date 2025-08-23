@@ -7,6 +7,8 @@ bool is_operator(TokenType token) {
         case EQUALS:
         case NOT_EQUALS:
         case NOT:
+        case OR:
+        case AND:
         case PLUS_PLUS:
         case MINUS_MINUS:
         case PLUS_EQUALS:
@@ -73,6 +75,7 @@ bool is_literal(TokenType token) {
     switch (token) {
         case INT:
         case STRING:
+        case BOOL:
         case IDENTIFIER:
             return true;
         default:

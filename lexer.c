@@ -8,6 +8,7 @@ typedef enum {
 
   INT,
   STRING,
+  BOOL,
   IDENTIFIER,
 
   OPEN_BRACKET,
@@ -85,6 +86,9 @@ void print_token(Token token){
       break;
     case STRING:
       printf(" TOKEN TYPE: STRING (%s)\n", token.value);
+      break;
+    case BOOL:
+      printf(" TOKEN TYPE: BOOL (%s)\n", token.value);
       break;
     case IDENTIFIER:
       printf(" TOKEN TYPE: IDENTIFIER (%s)\n", token.value);
@@ -271,12 +275,15 @@ Token *generate_keyword_or_identifier(char *current, int *current_index){
   } else if(strcmp(keyword, "else") == 0){ 
     token->type = ELSE;
     token->value = "else";
-  } else if(strcmp(keyword, "or") == 0){ 
+  } else if(strcmp(keyword, "or") == 0){
     token->type = OR;
     token->value = "or";
-  } else if(strcmp(keyword, "and") == 0){ 
+  } else if(strcmp(keyword, "and") == 0){
     token->type = AND;
     token->value = "and";
+  } else if(strcmp(keyword, "true") == 0 || strcmp(keyword, "false") == 0){
+    token->type = BOOL;
+    token->value = keyword;
   } else {
     token->type = IDENTIFIER;
     token->value = keyword;
@@ -360,51 +367,61 @@ Token *lexer(FILE *file) {
       tokens[tokens_index] = *token;
       free(token);
       tokens_index++;
+      current_index--;
     } else if (current[current_index] == '!' && current[current_index + 1] == '=') {
       token = generate_two_char_operator(current, &current_index, NOT_EQUALS);
       tokens[tokens_index] = *token;
       free(token);
       tokens_index++;
+      current_index--;
     } else if (current[current_index] == '<' && current[current_index + 1] == '=') {
       token = generate_two_char_operator(current, &current_index, LESS_EQUALS);
       tokens[tokens_index] = *token;
       free(token);
       tokens_index++;
+      current_index--;
     } else if (current[current_index] == '>' && current[current_index + 1] == '=') {
       token = generate_two_char_operator(current, &current_index, GREATER_EQUALS);
       tokens[tokens_index] = *token;
       free(token);
       tokens_index++;
+      current_index--;
     } else if (current[current_index] == '&' && current[current_index + 1] == '&') {
       token = generate_two_char_operator(current, &current_index, AND);
       tokens[tokens_index] = *token;
       free(token);
       tokens_index++;
+      current_index--;
     } else if (current[current_index] == '|' && current[current_index + 1] == '|') {
       token = generate_two_char_operator(current, &current_index, OR);
       tokens[tokens_index] = *token;
       free(token);
       tokens_index++;
+      current_index--;
     } else if (current[current_index] == '+' && current[current_index + 1] == '+') {
       token = generate_two_char_operator(current, &current_index, PLUS_PLUS);
       tokens[tokens_index] = *token;
       free(token);
       tokens_index++;
+      current_index--;
     } else if (current[current_index] == '-' && current[current_index + 1] == '-') {
       token = generate_two_char_operator(current, &current_index, MINUS_MINUS);
       tokens[tokens_index] = *token;
       free(token);
       tokens_index++;
+      current_index--;
     } else if (current[current_index] == '+' && current[current_index + 1] == '=') {
       token = generate_two_char_operator(current, &current_index, PLUS_EQUALS);
       tokens[tokens_index] = *token;
       free(token);
       tokens_index++;
+      current_index--;
     } else if (current[current_index] == '-' && current[current_index + 1] == '=') {
       token = generate_two_char_operator(current, &current_index, MINUS_EQUALS);
       tokens[tokens_index] = *token;
       free(token);
       tokens_index++;
+      current_index--;
     }
     else if (current[current_index] == ';') {
       token = generate_separator_or_operator(current, &current_index, SEMICOLON);
