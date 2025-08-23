@@ -45,15 +45,24 @@ void print_tree(Node *node, int indent, char *identifier, int is_last) {
   printf("\n");
 
   indent += 4;
-  if (node->left)
-    print_tree(node->left, indent, "left", 0);
-  if (node->right)
-    print_tree(node->right, indent, "right", 0);
-  for (size_t i = 0; i < node->children.len; i++) {
-    char buf[32];
-    snprintf(buf, sizeof(buf), "child[%zu]", i);
-    print_tree(node->children.items[i], indent, buf,
-               i == node->children.len - 1);
+  if (node->kind == NK_IfStmt) {
+    if (node->left)
+      print_tree(node->left, indent, "cond", 0);
+    if (node->right)
+      print_tree(node->right, indent, "then", 0);
+    if (node->children.len > 0)
+      print_tree(node->children.items[0], indent, "else", 1);
+  } else {
+    if (node->left)
+      print_tree(node->left, indent, "left", 0);
+    if (node->right)
+      print_tree(node->right, indent, "right", 0);
+    for (size_t i = 0; i < node->children.len; i++) {
+      char buf[32];
+      snprintf(buf, sizeof(buf), "child[%zu]", i);
+      print_tree(node->children.items[i], indent, buf,
+                 i == node->children.len - 1);
+    }
   }
 }
 
@@ -269,8 +278,8 @@ static Node *parse_if_internal(Token **pp, bool consumed_kw) {
   Node *cond = parse_expr(pp, 0);
   expect(pp, CLOSE_PAREN, "expected )");
   Node *then_block = parse_block(pp);
-  vec_push(&node->children, cond);
-  vec_push(&node->children, then_block);
+  node->left = cond;
+  node->right = then_block;
   if (match(pp, ELSE_IF)) {
     Node *elif = parse_if_internal(pp, true);
     vec_push(&node->children, elif);
