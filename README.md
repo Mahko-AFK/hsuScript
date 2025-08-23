@@ -31,3 +31,13 @@ Run the compiler on a `.hs` source file to print tokens and the AST:
 - Output using `write(expression);`
 
 See `test_cases/` for examples.
+
+## Testing
+
+Run the parser fixtures with:
+
+```bash
+./runtests.sh
+```
+
+The script builds the compiler and checks each `.hsc` in `tests/cases` against its expected `.ast` or `.err` output.

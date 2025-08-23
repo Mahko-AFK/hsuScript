@@ -1,0 +1,56 @@
+ TOKEN TYPE: FN
+ TOKEN TYPE: IDENTIFIER (main)
+ TOKEN TYPE: OPEN_PAREN
+ TOKEN TYPE: CLOSE_PAREN
+ TOKEN TYPE: OPEN_CURLY
+ TOKEN TYPE: LET
+ TOKEN TYPE: IDENTIFIER (i)
+ TOKEN TYPE: ASSIGNMENT
+ TOKEN TYPE: INT (0)
+ TOKEN TYPE: SEMICOLON
+ TOKEN TYPE: FOR
+ TOKEN TYPE: OPEN_PAREN
+ TOKEN TYPE: IDENTIFIER (i)
+ TOKEN TYPE: ASSIGNMENT
+ TOKEN TYPE: INT (0)
+ TOKEN TYPE: SEMICOLON
+ TOKEN TYPE: IDENTIFIER (i)
+ TOKEN TYPE: LESS
+ TOKEN TYPE: INT (3)
+ TOKEN TYPE: SEMICOLON
+ TOKEN TYPE: IDENTIFIER (i)
+ TOKEN TYPE: ASSIGNMENT
+ TOKEN TYPE: IDENTIFIER (i)
+ TOKEN TYPE: PLUS
+ TOKEN TYPE: INT (1)
+ TOKEN TYPE: CLOSE_PAREN
+ TOKEN TYPE: OPEN_CURLY
+ TOKEN TYPE: WRITE
+ TOKEN TYPE: OPEN_PAREN
+ TOKEN TYPE: IDENTIFIER (i)
+ TOKEN TYPE: CLOSE_PAREN
+ TOKEN TYPE: SEMICOLON
+ TOKEN TYPE: CLOSE_CURLY
+ TOKEN TYPE: CLOSE_CURLY
+Printing AST (Abstract Syntax Tree):
+Program
+    Block
+        FnDecl value=main
+            Block
+                LetStmt value=i
+                    Int value=0
+                ForStmt
+                    AssignStmt op== value=i
+                        Identifier value=i
+                        Int value=0
+                    Binary op=<
+                        Identifier value=i
+                        Int value=3
+                    AssignStmt op== value=i
+                        Identifier value=i
+                        Binary op=+
+                            Identifier value=i
+                            Int value=1
+                    Block
+                        WriteStmt
+                            Identifier value=i
