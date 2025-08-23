@@ -249,6 +249,17 @@ static Node *parse_assign_or_expr(Token **pp) {
   return expr;
 }
 
+static Node *parse_expr_or_assign_nosemi(Token **pp) {
+  Node *expr = parse_expr(pp, 0);
+  if (expr->kind == NK_Binary &&
+      (expr->op == ASSIGNMENT || expr->op == PLUS_EQUALS ||
+       expr->op == MINUS_EQUALS) && expr->left &&
+      expr->left->kind == NK_Identifier) {
+    expr->kind = NK_AssignStmt;
+  }
+  return expr;
+}
+
 static Node *parse_if_internal(Token **pp, bool consumed_kw) {
   if (!consumed_kw)
     expect(pp, IF, "expected if");
@@ -290,15 +301,29 @@ static Node *parse_for(Token **pp) {
   Node *node = init_node(NULL, NULL, 0);
   node->kind = NK_ForStmt;
   expect(pp, OPEN_PAREN, "expected (");
-  int depth = 1;
-  while (depth > 0) {
-    TokenType tt = peek(pp)->type;
-    if (tt == OPEN_PAREN)
-      depth++;
-    else if (tt == CLOSE_PAREN)
-      depth--;
-    next(pp);
+
+  Node *init = NULL;
+  if (peek(pp)->type != SEMICOLON) {
+    if (peek(pp)->type == LET)
+      init = parse_let(pp, false);
+    else
+      init = parse_expr_or_assign_nosemi(pp);
   }
+  expect(pp, SEMICOLON, "expected semicolon");
+  vec_push(&node->children, init);
+
+  Node *cond = NULL;
+  if (peek(pp)->type != SEMICOLON)
+    cond = parse_expr(pp, 0);
+  expect(pp, SEMICOLON, "expected semicolon");
+  vec_push(&node->children, cond);
+
+  Node *step = NULL;
+  if (peek(pp)->type != CLOSE_PAREN)
+    step = parse_expr_or_assign_nosemi(pp);
+  expect(pp, CLOSE_PAREN, "expected )");
+  vec_push(&node->children, step);
+
   Node *body = parse_block(pp);
   vec_push(&node->children, body);
   return node;

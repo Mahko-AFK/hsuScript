@@ -149,6 +149,26 @@ Type *sem_expr(Node *node, Scope *scope) {
 }
 
 static int sem_if(Node *ifnode, Scope *scope);
+static void sem_for(Node *fornode, Scope *scope);
+
+static void sem_let(Node *stmt, Scope *scope) {
+  const char *name = stmt->left->value;
+  Type *t = type_unknown();
+  if (stmt->right)
+    t = sem_expr(stmt->right, scope);
+  if (!scope_insert(scope, name, t))
+    sem_error("duplicate identifier", name);
+  stmt->ty = type_void();
+}
+
+static void sem_assign(Node *stmt, Scope *scope) {
+  const char *name = stmt->left->value;
+  Type *lhs = scope_lookup(scope, name);
+  if (!lhs) sem_error("undeclared identifier", name);
+  Type *rhs = sem_expr(stmt->right, scope);
+  if (lhs != rhs) sem_error("assignment of incompatible types", name);
+  stmt->ty = lhs;
+}
 
 int sem_block(Node *block, Scope *scope) {
   Scope *inner = scope_new(scope);
@@ -197,6 +217,10 @@ int sem_block(Node *block, Scope *scope) {
         must_exit = 1;
       stmt->ty = type_void();
       break;
+    case NK_ForStmt:
+      sem_for(stmt, inner);
+      stmt->ty = type_void();
+      break;
     default:
       sem_expr(stmt, inner);
       stmt->ty = type_void();
@@ -220,6 +244,38 @@ static int sem_if(Node *ifnode, Scope *scope) {
     return exit_then && exit_alt;
   }
   return 0;
+}
+
+static void sem_for(Node *fornode, Scope *scope) {
+  Scope *loop = scope_new(scope);
+  Node *init = fornode->children.len > 0 ? fornode->children.items[0] : NULL;
+  Node *cond = fornode->children.len > 1 ? fornode->children.items[1] : NULL;
+  Node *step = fornode->children.len > 2 ? fornode->children.items[2] : NULL;
+  Node *body = fornode->children.len > 3 ? fornode->children.items[3] : NULL;
+
+  if (init) {
+    if (init->kind == NK_LetStmt)
+      sem_let(init, loop);
+    else if (init->kind == NK_AssignStmt)
+      sem_assign(init, loop);
+    else
+      sem_expr(init, loop);
+  }
+
+  if (cond) {
+    if (sem_expr(cond, loop) != type_bool())
+      sem_error("for condition must be boolean", NULL);
+  }
+
+  if (body)
+    sem_block(body, loop);
+
+  if (step) {
+    if (step->kind == NK_AssignStmt)
+      sem_assign(step, loop);
+    else
+      sem_expr(step, loop);
+  }
 }
 
 void sem_program(Node *root) {
