@@ -568,11 +568,15 @@ Node *handle_write(Token *current_token, Node *current){
 }
 
 Node *handle_if(Token *current_token, Node *current){
-  Node *if_node = malloc(sizeof(Node));
-  if_node = init_node(if_node, current_token->value, current_token->type);
-  current->right = if_node;
-  current = if_node;
+  Node *cond_node = malloc(sizeof(Node));
+  cond_node = init_node(cond_node, current_token->value, current_token->type);
+  current->right = cond_node;
+  current = cond_node;
   current_token++;
+
+  if(cond_node->type == ELSE){
+    return current;
+  }
 
   handle_token_errors("Invalid Syntax on OPEN", current_token, current_token->type == OPEN_PAREN);
   Node *open_paren_node = malloc(sizeof(Node));
@@ -596,18 +600,6 @@ Node *handle_if(Token *current_token, Node *current){
   close_paren_node = init_node(close_paren_node, current_token->value, CLOSE_PAREN);
   open_paren_node->right = close_paren_node;
   current = close_paren_node;
-  return current;
-}
-
-Node *handle_else_if(Token *current_token, Node *current){
-  return handle_if(current_token, current);
-}
-
-Node *handle_else(Token *current_token, Node *current){
-  Node *else_node = malloc(sizeof(Node));
-  else_node = init_node(else_node, current_token->value, ELSE);
-  current->right = else_node;
-  current = else_node;
   return current;
 }
 
@@ -699,6 +691,9 @@ Node *parser(Token *tokens){
   curly_stack *stack = malloc(sizeof(curly_stack));
   stack->top = -1;
 
+  bool allow_else = false;
+  bool after_if_block = false;
+
   while(current_token->type != END_OF_TOKENS){
     if(current == NULL){
       break;
@@ -706,23 +701,18 @@ Node *parser(Token *tokens){
     switch(current_token->type){
       case LET:
       case FN:
-      case IF:
-      case ELSE_IF:
-      case ELSE:
       case FOR:
       case WHILE:
       case WRITE:
       case EXIT:
+        if(allow_else && after_if_block){
+          allow_else = false;
+          after_if_block = false;
+        }
         if(current_token->type == LET){
           current = create_variables(current_token, current);
         } else if(current_token->type == FN){
           current = handle_fn(current_token, current);
-        } else if(current_token->type == IF){
-          current = handle_if(current_token, current);
-        } else if(current_token->type == ELSE_IF){
-          current = handle_else_if(current_token, current);
-        } else if(current_token->type == ELSE){
-          current = handle_else(current_token, current);
         } else if(current_token->type == FOR){
           current = handle_for(current_token, current);
         } else if(current_token->type == WHILE){
@@ -733,6 +723,27 @@ Node *parser(Token *tokens){
           current = handle_exit_syscall(current_token, current);
         }
         break;
+      case IF:
+        current = handle_if(current_token, current);
+        allow_else = true;
+        after_if_block = false;
+        break;
+      case ELSE_IF:
+        if(!(allow_else && after_if_block)){
+          print_error("Unexpected else without matching if", current_token->line_num);
+        }
+        current = handle_if(current_token, current);
+        allow_else = true;
+        after_if_block = false;
+        break;
+      case ELSE:
+        if(!(allow_else && after_if_block)){
+          print_error("Unexpected else without matching if", current_token->line_num);
+        }
+        current = handle_if(current_token, current);
+        allow_else = false;
+        after_if_block = false;
+        break;
       case OPEN_CURLY:
       case CLOSE_CURLY:
       case OPEN_BRACKET:
@@ -741,6 +752,7 @@ Node *parser(Token *tokens){
       case CLOSE_PAREN:
       case SEMICOLON:
       case COMMA:
+        // structural tokens do not reset allow_else
         if(current_token->type == OPEN_CURLY){
           Token *temp = current_token;
           open_curly = init_node(open_curly, temp->value, OPEN_CURLY);
@@ -759,8 +771,11 @@ Node *parser(Token *tokens){
           close_curly = init_node(close_curly, current_token->value, current_token->type);
           current->right = close_curly;
           current = close_curly;
+          if(allow_else){
+            after_if_block = true;
+          }
         }
-        break; 
+        break;
       case ASSIGNMENT:
       case NOT:
       case PLUS_PLUS:
@@ -776,6 +791,10 @@ Node *parser(Token *tokens){
       case INT:
         break;
       case IDENTIFIER:
+        if(allow_else && after_if_block){
+          allow_else = false;
+          after_if_block = false;
+        }
         current_token--;
         if(current_token->type == SEMICOLON || current_token->type == OPEN_CURLY || current_token->type == CLOSE_CURLY){
           current_token++;
@@ -785,6 +804,10 @@ Node *parser(Token *tokens){
         }
         break;
       case STRING:
+        if(allow_else && after_if_block){
+          allow_else = false;
+          after_if_block = false;
+        }
         break;
       case OR:
       case AND:
@@ -794,8 +817,16 @@ Node *parser(Token *tokens){
       case GREATER_EQUALS:
       case EQUALS:
       case NOT_EQUALS:
+        if(allow_else && after_if_block){
+          allow_else = false;
+          after_if_block = false;
+        }
         break;
       case BEGINNING:
+        if(allow_else && after_if_block){
+          allow_else = false;
+          after_if_block = false;
+        }
         break;
       case END_OF_TOKENS:
         break;
