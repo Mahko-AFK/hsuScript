@@ -51,7 +51,6 @@ typedef enum {
   ELSE_IF,
   ELSE,
   FOR,
-  FOR_EACH,
   WHILE,
   WRITE,
   EXIT,
@@ -189,9 +188,6 @@ void print_token(Token token){
     case FOR:
       printf(" TOKEN TYPE: FOR\n");
       break;
-    case FOR_EACH:
-      printf(" TOKEN TYPE: FOR_EACH\n");
-      break;
     case WHILE:
       printf(" TOKEN TYPE: WHILE\n");
       break;
@@ -269,10 +265,7 @@ Token *generate_keyword_or_identifier(char *current, int *current_index){
   } else if(strcmp(keyword, "for") == 0){
     token->type = FOR;
     token->value = "for";
-  } else if(strcmp(keyword, "foreach") == 0){
-    token->type = FOR_EACH;
-    token->value = "foreach";
-  } else if(strcmp(keyword, "fn") == 0){ 
+  } else if(strcmp(keyword, "fn") == 0){
     token->type = FN;
     token->value = "fn";
   } else if(strcmp(keyword, "else") == 0){ 

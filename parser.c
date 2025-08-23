@@ -528,6 +528,164 @@ Node *create_variables(Token *current_token, Node *current){
   return current;
 }
 
+Node *handle_write(Token *current_token, Node *current){
+  Node *write_node = malloc(sizeof(Node));
+  write_node = init_node(write_node, current_token->value, WRITE);
+  current->right = write_node;
+  current = write_node;
+  current_token++;
+
+  handle_token_errors("Invalid Syntax on OPEN", current_token, current_token->type == OPEN_PAREN);
+  Node *open_paren_node = malloc(sizeof(Node));
+  open_paren_node = init_node(open_paren_node, current_token->value, OPEN_PAREN);
+  current->left = open_paren_node;
+  current_token++;
+
+  handle_token_errors("Invalid Syntax on EXP", current_token,
+                      current_token->type == INT ||
+                      current_token->type == STRING ||
+                      current_token->type == IDENTIFIER);
+  Node *expr_node = malloc(sizeof(Node));
+  expr_node = init_node(expr_node, current_token->value, current_token->type);
+  open_paren_node->left = expr_node;
+  current_token++;
+
+  while(current_token->type != CLOSE_PAREN && current_token->type != END_OF_TOKENS){
+    current_token++;
+  }
+  handle_token_errors("Invalid Syntax on CLOSE", current_token, current_token->type == CLOSE_PAREN);
+  Node *close_paren_node = malloc(sizeof(Node));
+  close_paren_node = init_node(close_paren_node, current_token->value, CLOSE_PAREN);
+  open_paren_node->right = close_paren_node;
+  current_token++;
+
+  handle_token_errors("Invalid Syntax on SEMI", current_token, current_token->type == SEMICOLON);
+  Node *semi_node = malloc(sizeof(Node));
+  semi_node = init_node(semi_node, current_token->value, SEMICOLON);
+  current->right = semi_node;
+  current = semi_node;
+  return current;
+}
+
+Node *handle_if(Token *current_token, Node *current){
+  Node *if_node = malloc(sizeof(Node));
+  if_node = init_node(if_node, current_token->value, current_token->type);
+  current->right = if_node;
+  current = if_node;
+  current_token++;
+
+  handle_token_errors("Invalid Syntax on OPEN", current_token, current_token->type == OPEN_PAREN);
+  Node *open_paren_node = malloc(sizeof(Node));
+  open_paren_node = init_node(open_paren_node, current_token->value, OPEN_PAREN);
+  current->left = open_paren_node;
+  current_token++;
+
+  handle_token_errors("Invalid Syntax on EXP", current_token,
+                      current_token->type == INT ||
+                      current_token->type == STRING ||
+                      current_token->type == IDENTIFIER);
+  Node *expr_node = malloc(sizeof(Node));
+  expr_node = init_node(expr_node, current_token->value, current_token->type);
+  open_paren_node->left = expr_node;
+  current_token++;
+  while(current_token->type != CLOSE_PAREN && current_token->type != END_OF_TOKENS){
+    current_token++;
+  }
+  handle_token_errors("Invalid Syntax on CLOSE", current_token, current_token->type == CLOSE_PAREN);
+  Node *close_paren_node = malloc(sizeof(Node));
+  close_paren_node = init_node(close_paren_node, current_token->value, CLOSE_PAREN);
+  open_paren_node->right = close_paren_node;
+  current = close_paren_node;
+  return current;
+}
+
+Node *handle_else_if(Token *current_token, Node *current){
+  return handle_if(current_token, current);
+}
+
+Node *handle_else(Token *current_token, Node *current){
+  Node *else_node = malloc(sizeof(Node));
+  else_node = init_node(else_node, current_token->value, ELSE);
+  current->right = else_node;
+  current = else_node;
+  return current;
+}
+
+Node *handle_while(Token *current_token, Node *current){
+  return handle_if(current_token, current);
+}
+
+Node *handle_for(Token *current_token, Node *current){
+  Node *for_node = malloc(sizeof(Node));
+  for_node = init_node(for_node, current_token->value, FOR);
+  current->right = for_node;
+  current = for_node;
+  current_token++;
+
+  handle_token_errors("Invalid Syntax on OPEN", current_token, current_token->type == OPEN_PAREN);
+  Node *open_paren_node = malloc(sizeof(Node));
+  open_paren_node = init_node(open_paren_node, current_token->value, OPEN_PAREN);
+  current->left = open_paren_node;
+  current_token++;
+
+  // simple parsing: init expression until first semicolon
+  while(current_token->type != SEMICOLON && current_token->type != END_OF_TOKENS){
+    current_token++;
+  }
+  handle_token_errors("Invalid Syntax on SEMI", current_token, current_token->type == SEMICOLON);
+  Node *first_semi = malloc(sizeof(Node));
+  first_semi = init_node(first_semi, current_token->value, SEMICOLON);
+  open_paren_node->left = first_semi;
+  current_token++;
+
+  // condition expression until next semicolon
+  while(current_token->type != SEMICOLON && current_token->type != END_OF_TOKENS){
+    current_token++;
+  }
+  handle_token_errors("Invalid Syntax on SEMI", current_token, current_token->type == SEMICOLON);
+  Node *second_semi = malloc(sizeof(Node));
+  second_semi = init_node(second_semi, current_token->value, SEMICOLON);
+  first_semi->right = second_semi;
+  current_token++;
+
+  // update expression until close paren
+  while(current_token->type != CLOSE_PAREN && current_token->type != END_OF_TOKENS){
+    current_token++;
+  }
+  handle_token_errors("Invalid Syntax on CLOSE", current_token, current_token->type == CLOSE_PAREN);
+  Node *close_paren_node = malloc(sizeof(Node));
+  close_paren_node = init_node(close_paren_node, current_token->value, CLOSE_PAREN);
+  second_semi->right = close_paren_node;
+  current = close_paren_node;
+  return current;
+}
+
+Node *handle_fn(Token *current_token, Node *current){
+  Node *fn_node = malloc(sizeof(Node));
+  fn_node = init_node(fn_node, current_token->value, FN);
+  current->right = fn_node;
+  current = fn_node;
+  current_token++;
+
+  handle_token_errors("Invalid Syntax on IDENT", current_token, current_token->type == IDENTIFIER);
+  Node *identifier_node = malloc(sizeof(Node));
+  identifier_node = init_node(identifier_node, current_token->value, IDENTIFIER);
+  current->left = identifier_node;
+  current_token++;
+
+  handle_token_errors("Invalid Syntax on OPEN", current_token, current_token->type == OPEN_PAREN);
+  Node *open_paren_node = malloc(sizeof(Node));
+  open_paren_node = init_node(open_paren_node, current_token->value, OPEN_PAREN);
+  identifier_node->left = open_paren_node;
+  current_token++;
+
+  handle_token_errors("Invalid Syntax on CLOSE", current_token, current_token->type == CLOSE_PAREN);
+  Node *close_paren_node = malloc(sizeof(Node));
+  close_paren_node = init_node(close_paren_node, current_token->value, CLOSE_PAREN);
+  open_paren_node->right = close_paren_node;
+  current = close_paren_node;
+  return current;
+}
 Node *parser(Token *tokens){
   Token *current_token = &tokens[0];
   Node *root = malloc(sizeof(Node));
@@ -552,26 +710,25 @@ Node *parser(Token *tokens){
       case ELSE_IF:
       case ELSE:
       case FOR:
-      case FOR_EACH:
       case WHILE:
       case WRITE:
       case EXIT:
         if(current_token->type == LET){
           current = create_variables(current_token, current);
         } else if(current_token->type == FN){
-          //handle function creation
+          current = handle_fn(current_token, current);
         } else if(current_token->type == IF){
-          //handle if statement creation
+          current = handle_if(current_token, current);
         } else if(current_token->type == ELSE_IF){
-          //handle else if creation
+          current = handle_else_if(current_token, current);
         } else if(current_token->type == ELSE){
-          //handle else creation
-        } else if(current_token->type == FOR_EACH){
-          //handle for each creation
+          current = handle_else(current_token, current);
+        } else if(current_token->type == FOR){
+          current = handle_for(current_token, current);
         } else if(current_token->type == WHILE){
-          //handle while loop creation
+          current = handle_while(current_token, current);
         } else if(current_token->type == WRITE){
-          //handle write creation
+          current = handle_write(current_token, current);
         } else if(current_token->type == EXIT){
           current = handle_exit_syscall(current_token, current);
         }
