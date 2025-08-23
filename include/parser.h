@@ -42,14 +42,9 @@ typedef struct Node {
   Vec children;      // Used when this node represents a block
 } Node;
 
-// Helper constructors used by the parser to create nodes of the
-// various kinds.  They allocate memory with calloc and copy strings
-// using strdup.
-Node *make_program(void);
-Node *make_block(void);
-Node *make_binary(TokenType op, Node *lhs, Node *rhs);
-Node *make_write(Node *expr);
-Node *make_literal(TokenType type, const char *value);
+// Basic initializer for AST nodes.
+Node *init_node(Node *node, const char *value, TokenType type);
+void free_tree(Node *node);
 
 Node *parser(Token *tokens);
 void print_tree(Node *node, int indent, char *identifier, int is_last);

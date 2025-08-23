@@ -35,5 +35,6 @@ int main(int argc, char *argv[]) {
   print_tree(root, 0, "Root", 0);
 
   generate_code(root, "out.asm");
+  free_tree(root);
 
 }
