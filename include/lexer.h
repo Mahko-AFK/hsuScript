@@ -8,6 +8,7 @@ typedef enum {
 
   INT,
   STRING,
+  BOOL,
   IDENTIFIER,
 
   OPEN_BRACKET,

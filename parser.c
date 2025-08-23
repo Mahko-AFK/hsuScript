@@ -528,127 +528,147 @@ Node *create_variables(Token *current_token, Node *current){
   return current;
 }
 
-Node *handle_write(Token *current_token, Node *current){
+Node *handle_write(Token **current_token, Node *current){
+  Token *token = *current_token;
+
   Node *write_node = malloc(sizeof(Node));
-  write_node = init_node(write_node, current_token->value, WRITE);
+  write_node = init_node(write_node, token->value, WRITE);
   current->right = write_node;
   current = write_node;
-  current_token++;
+  token++;
 
-  handle_token_errors("Invalid Syntax on OPEN", current_token, current_token->type == OPEN_PAREN);
+  handle_token_errors("Invalid Syntax on OPEN", token, token->type == OPEN_PAREN);
   Node *open_paren_node = malloc(sizeof(Node));
-  open_paren_node = init_node(open_paren_node, current_token->value, OPEN_PAREN);
+  open_paren_node = init_node(open_paren_node, token->value, OPEN_PAREN);
   current->left = open_paren_node;
-  current_token++;
+  token++;
 
-  handle_token_errors("Invalid Syntax on EXP", current_token,
-                      current_token->type == INT ||
-                      current_token->type == STRING ||
-                      current_token->type == IDENTIFIER);
+  handle_token_errors("Invalid Syntax on EXP", token,
+                      token->type == INT ||
+                      token->type == STRING ||
+                      token->type == IDENTIFIER ||
+                      token->type == BOOL);
   Node *expr_node = malloc(sizeof(Node));
-  expr_node = init_node(expr_node, current_token->value, current_token->type);
+  expr_node = init_node(expr_node, token->value, token->type);
   open_paren_node->left = expr_node;
-  current_token++;
+  token++;
 
-  while(current_token->type != CLOSE_PAREN && current_token->type != END_OF_TOKENS){
-    current_token++;
+  while(token->type != CLOSE_PAREN && token->type != END_OF_TOKENS){
+    token++;
   }
-  handle_token_errors("Invalid Syntax on CLOSE", current_token, current_token->type == CLOSE_PAREN);
+  handle_token_errors("Invalid Syntax on CLOSE", token, token->type == CLOSE_PAREN);
   Node *close_paren_node = malloc(sizeof(Node));
-  close_paren_node = init_node(close_paren_node, current_token->value, CLOSE_PAREN);
+  close_paren_node = init_node(close_paren_node, token->value, CLOSE_PAREN);
   open_paren_node->right = close_paren_node;
-  current_token++;
+  token++;
 
-  handle_token_errors("Invalid Syntax on SEMI", current_token, current_token->type == SEMICOLON);
+  handle_token_errors("Invalid Syntax on SEMI", token, token->type == SEMICOLON);
   Node *semi_node = malloc(sizeof(Node));
-  semi_node = init_node(semi_node, current_token->value, SEMICOLON);
+  semi_node = init_node(semi_node, token->value, SEMICOLON);
   current->right = semi_node;
   current = semi_node;
+
+  *current_token = token;
   return current;
 }
 
-Node *handle_if(Token *current_token, Node *current){
+Node *handle_if(Token **current_token, Node *current){
+  Token *token = *current_token;
+
   Node *cond_node = malloc(sizeof(Node));
-  cond_node = init_node(cond_node, current_token->value, current_token->type);
+  cond_node = init_node(cond_node, token->value, token->type);
   current->right = cond_node;
   current = cond_node;
-  current_token++;
+  token++;
 
   if(cond_node->type == ELSE){
+    // For `else` blocks, no parentheses follow. Reset the caller's token
+    // pointer to the `else` token so that the parser's main loop will
+    // advance to the upcoming `{` and process the block normally.
+    *current_token = token - 1;
     return current;
   }
 
-  handle_token_errors("Invalid Syntax on OPEN", current_token, current_token->type == OPEN_PAREN);
+  handle_token_errors("Invalid Syntax on OPEN", token, token->type == OPEN_PAREN);
   Node *open_paren_node = malloc(sizeof(Node));
-  open_paren_node = init_node(open_paren_node, current_token->value, OPEN_PAREN);
+  open_paren_node = init_node(open_paren_node, token->value, OPEN_PAREN);
   current->left = open_paren_node;
-  current_token++;
+  token++;
 
-  handle_token_errors("Invalid Syntax on EXP", current_token,
-                      current_token->type == INT ||
-                      current_token->type == STRING ||
-                      current_token->type == IDENTIFIER);
+  handle_token_errors("Invalid Syntax on EXP", token,
+                      token->type == INT ||
+                      token->type == STRING ||
+                      token->type == IDENTIFIER ||
+                      token->type == BOOL);
   Node *expr_node = malloc(sizeof(Node));
-  expr_node = init_node(expr_node, current_token->value, current_token->type);
+  expr_node = init_node(expr_node, token->value, token->type);
   open_paren_node->left = expr_node;
-  current_token++;
-  while(current_token->type != CLOSE_PAREN && current_token->type != END_OF_TOKENS){
-    current_token++;
+  token++;
+
+  while(token->type != CLOSE_PAREN && token->type != END_OF_TOKENS){
+    token++;
   }
-  handle_token_errors("Invalid Syntax on CLOSE", current_token, current_token->type == CLOSE_PAREN);
+
+  handle_token_errors("Invalid Syntax on CLOSE", token, token->type == CLOSE_PAREN);
   Node *close_paren_node = malloc(sizeof(Node));
-  close_paren_node = init_node(close_paren_node, current_token->value, CLOSE_PAREN);
+  close_paren_node = init_node(close_paren_node, token->value, CLOSE_PAREN);
   open_paren_node->right = close_paren_node;
   current = close_paren_node;
+
+  *current_token = token;
   return current;
 }
 
-Node *handle_while(Token *current_token, Node *current){
+Node *handle_while(Token **current_token, Node *current){
   return handle_if(current_token, current);
 }
 
-Node *handle_for(Token *current_token, Node *current){
+Node *handle_for(Token **current_token, Node *current){
+  Token *token = *current_token;
+
   Node *for_node = malloc(sizeof(Node));
-  for_node = init_node(for_node, current_token->value, FOR);
+  for_node = init_node(for_node, token->value, FOR);
   current->right = for_node;
   current = for_node;
-  current_token++;
+  token++;
 
-  handle_token_errors("Invalid Syntax on OPEN", current_token, current_token->type == OPEN_PAREN);
+  handle_token_errors("Invalid Syntax on OPEN", token, token->type == OPEN_PAREN);
   Node *open_paren_node = malloc(sizeof(Node));
-  open_paren_node = init_node(open_paren_node, current_token->value, OPEN_PAREN);
+  open_paren_node = init_node(open_paren_node, token->value, OPEN_PAREN);
   current->left = open_paren_node;
-  current_token++;
+  token++;
 
   // simple parsing: init expression until first semicolon
-  while(current_token->type != SEMICOLON && current_token->type != END_OF_TOKENS){
-    current_token++;
+  while(token->type != SEMICOLON && token->type != END_OF_TOKENS){
+    token++;
   }
-  handle_token_errors("Invalid Syntax on SEMI", current_token, current_token->type == SEMICOLON);
+  handle_token_errors("Invalid Syntax on SEMI", token, token->type == SEMICOLON);
   Node *first_semi = malloc(sizeof(Node));
-  first_semi = init_node(first_semi, current_token->value, SEMICOLON);
+  first_semi = init_node(first_semi, token->value, SEMICOLON);
   open_paren_node->left = first_semi;
-  current_token++;
+  token++;
 
   // condition expression until next semicolon
-  while(current_token->type != SEMICOLON && current_token->type != END_OF_TOKENS){
-    current_token++;
+  while(token->type != SEMICOLON && token->type != END_OF_TOKENS){
+    token++;
   }
-  handle_token_errors("Invalid Syntax on SEMI", current_token, current_token->type == SEMICOLON);
+  handle_token_errors("Invalid Syntax on SEMI", token, token->type == SEMICOLON);
   Node *second_semi = malloc(sizeof(Node));
-  second_semi = init_node(second_semi, current_token->value, SEMICOLON);
+  second_semi = init_node(second_semi, token->value, SEMICOLON);
   first_semi->right = second_semi;
-  current_token++;
+  token++;
 
   // update expression until close paren
-  while(current_token->type != CLOSE_PAREN && current_token->type != END_OF_TOKENS){
-    current_token++;
+  while(token->type != CLOSE_PAREN && token->type != END_OF_TOKENS){
+    token++;
   }
-  handle_token_errors("Invalid Syntax on CLOSE", current_token, current_token->type == CLOSE_PAREN);
+  handle_token_errors("Invalid Syntax on CLOSE", token, token->type == CLOSE_PAREN);
   Node *close_paren_node = malloc(sizeof(Node));
-  close_paren_node = init_node(close_paren_node, current_token->value, CLOSE_PAREN);
+  close_paren_node = init_node(close_paren_node, token->value, CLOSE_PAREN);
   second_semi->right = close_paren_node;
   current = close_paren_node;
+
+  *current_token = token;
   return current;
 }
 
@@ -714,17 +734,17 @@ Node *parser(Token *tokens){
         } else if(current_token->type == FN){
           current = handle_fn(current_token, current);
         } else if(current_token->type == FOR){
-          current = handle_for(current_token, current);
+          current = handle_for(&current_token, current);
         } else if(current_token->type == WHILE){
-          current = handle_while(current_token, current);
-        } else if(current_token->type == WRITE){
-          current = handle_write(current_token, current);
-        } else if(current_token->type == EXIT){
-          current = handle_exit_syscall(current_token, current);
-        }
+          current = handle_while(&current_token, current);
+          } else if(current_token->type == WRITE){
+            current = handle_write(&current_token, current);
+          } else if(current_token->type == EXIT){
+            current = handle_exit_syscall(current_token, current);
+          }
         break;
       case IF:
-        current = handle_if(current_token, current);
+        current = handle_if(&current_token, current);
         allow_else = true;
         after_if_block = false;
         break;
@@ -732,7 +752,7 @@ Node *parser(Token *tokens){
         if(!(allow_else && after_if_block)){
           print_error("Unexpected else without matching if", current_token->line_num);
         }
-        current = handle_if(current_token, current);
+        current = handle_if(&current_token, current);
         allow_else = true;
         after_if_block = false;
         break;
@@ -740,7 +760,7 @@ Node *parser(Token *tokens){
         if(!(allow_else && after_if_block)){
           print_error("Unexpected else without matching if", current_token->line_num);
         }
-        current = handle_if(current_token, current);
+        current = handle_if(&current_token, current);
         allow_else = false;
         after_if_block = false;
         break;
@@ -804,6 +824,12 @@ Node *parser(Token *tokens){
         }
         break;
       case STRING:
+        if(allow_else && after_if_block){
+          allow_else = false;
+          after_if_block = false;
+        }
+        break;
+      case BOOL:
         if(allow_else && after_if_block){
           allow_else = false;
           after_if_block = false;
