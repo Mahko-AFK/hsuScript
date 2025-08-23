@@ -51,7 +51,6 @@ typedef enum {
   ELSE_IF,
   ELSE,
   FOR,
-  FOR_EACH,
   WHILE,
   WRITE,
   EXIT,

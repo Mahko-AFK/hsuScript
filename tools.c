@@ -60,7 +60,6 @@ bool is_keyword(TokenType token) {
         case ELSE_IF:
         case ELSE:
         case FOR:
-        case FOR_EACH:
         case WHILE:
         case WRITE:
         case EXIT:
