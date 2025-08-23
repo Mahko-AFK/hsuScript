@@ -69,19 +69,15 @@ Type *sem_expr(Node *node, Scope *scope) {
   if (!node) return type_void();
   switch (node->kind) {
   case NK_Int:
-    node->ty = type_int();
-    return node->ty;
+    return node->ty = type_int();
   case NK_String:
-    node->ty = type_string();
-    return node->ty;
+    return node->ty = type_string();
   case NK_Bool:
-    node->ty = type_bool();
-    return node->ty;
+    return node->ty = type_bool();
   case NK_Identifier: {
     Type *t = scope_lookup(scope, node->value);
     if (!t) sem_error("undeclared identifier", node->value);
-    node->ty = t;
-    return t;
+    return node->ty = t;
   }
   case NK_Unary: {
     Type *rt = sem_expr(node->left, scope);
@@ -222,16 +218,18 @@ int sem_block(Node *block, Scope *scope) {
 }
 
 static int sem_if(Node *ifnode, Scope *scope) {
-  if (sem_expr(ifnode->left, scope) != type_bool())
+  Node *cond = ifnode->left;
+  Node *then_block = ifnode->right;
+  if (sem_expr(cond, scope) != type_bool())
     sem_error("if condition must be boolean", NULL);
-  int exit_then = sem_block(ifnode->right, scope);
+  int exit_then = sem_block(then_block, scope);
   if (ifnode->children.len > 0) {
-    Node *alt = ifnode->children.items[0];
+    Node *else_node = ifnode->children.items[0];
     int exit_alt;
-    if (alt->kind == NK_IfStmt)
-      exit_alt = sem_if(alt, scope);
+    if (else_node->kind == NK_IfStmt)
+      exit_alt = sem_if(else_node, scope);
     else
-      exit_alt = sem_block(alt, scope);
+      exit_alt = sem_block(else_node, scope);
     return exit_then && exit_alt;
   }
   return 0;
