@@ -152,7 +152,7 @@ static int sem_if(Node *ifnode, Scope *scope);
 static void sem_for(Node *fornode, Scope *scope);
 
 static void sem_let(Node *stmt, Scope *scope) {
-  const char *name = stmt->left->value;
+  const char *name = stmt->value;
   Type *t = type_unknown();
   if (stmt->right)
     t = sem_expr(stmt->right, scope);
@@ -162,7 +162,7 @@ static void sem_let(Node *stmt, Scope *scope) {
 }
 
 static void sem_assign(Node *stmt, Scope *scope) {
-  const char *name = stmt->left->value;
+  const char *name = stmt->value;
   Type *lhs = scope_lookup(scope, name);
   if (!lhs) sem_error("undeclared identifier", name);
   Type *rhs = sem_expr(stmt->right, scope);
@@ -178,25 +178,16 @@ int sem_block(Node *block, Scope *scope) {
       break;
     Node *stmt = block->children.items[i];
     switch (stmt->kind) {
-    case NK_LetStmt: {
-      const char *name = stmt->left->value;
-      Type *t = type_unknown();
-      if (stmt->right)
-        t = sem_expr(stmt->right, inner);
-      if (!scope_insert(inner, name, t))
-        sem_error("duplicate identifier", name);
+    case NK_LetStmt:
+      sem_let(stmt, inner);
+      break;
+    case NK_AssignStmt:
+      sem_assign(stmt, inner);
+      break;
+    case NK_ExprStmt:
+      sem_expr(stmt->left, inner);
       stmt->ty = type_void();
       break;
-    }
-    case NK_AssignStmt: {
-      const char *name = stmt->left->value;
-      Type *lhs = scope_lookup(inner, name);
-      if (!lhs) sem_error("undeclared identifier", name);
-      Type *rhs = sem_expr(stmt->right, inner);
-      if (lhs != rhs) sem_error("assignment of incompatible types", name);
-      stmt->ty = lhs;
-      break;
-    }
     case NK_WriteStmt:
       sem_expr(stmt->left, inner);
       stmt->ty = type_void();
