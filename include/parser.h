@@ -9,6 +9,7 @@ typedef enum {
   NK_Program,
   NK_Block,
   NK_FnDecl,
+  NK_ExprStmt,
   NK_LetStmt,
   NK_AssignStmt,
   NK_IfStmt,

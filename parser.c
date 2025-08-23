@@ -52,6 +52,9 @@ void print_tree(Node *node, int indent, char *identifier, int is_last) {
       print_tree(node->right, indent, "then", 0);
     if (node->children.len > 0)
       print_tree(node->children.items[0], indent, "else", 1);
+  } else if (node->kind == NK_ExprStmt) {
+    if (node->left)
+      print_tree(node->left, indent, "expr", 1);
   } else {
     if (node->left)
       print_tree(node->left, indent, "left", 0);
@@ -221,11 +224,8 @@ static Node *parse_exit(Token **pp) {
 static Node *parse_let(Token **pp, bool expect_semi) {
   expect(pp, LET, "expected let");
   Token *id = expect(pp, IDENTIFIER, "expected identifier");
-  Node *node = init_node(NULL, NULL, 0);
+  Node *node = init_node(NULL, id->value, 0);
   node->kind = NK_LetStmt;
-  Node *id_node = init_node(NULL, id->value, IDENTIFIER);
-  id_node->kind = NK_Identifier;
-  node->left = id_node;
   if (match(pp, ASSIGNMENT)) {
     Node *expr = parse_expr(pp, 0);
     node->right = expr;
@@ -242,12 +242,9 @@ static Node *parse_assign_or_expr(Token **pp) {
     next(pp); // consume operator
     Node *expr = parse_expr(pp, 0);
     expect(pp, SEMICOLON, "expected semicolon");
-    Node *node = init_node(NULL, NULL, 0);
+    Node *node = init_node(NULL, start->value, 0);
     node->kind = NK_AssignStmt;
     node->op = t;
-    Node *id_node = init_node(NULL, start->value, IDENTIFIER);
-    id_node->kind = NK_Identifier;
-    node->left = id_node;
     node->right = expr;
     return node;
   }
@@ -255,7 +252,10 @@ static Node *parse_assign_or_expr(Token **pp) {
   prev(pp); // put identifier back for expression parsing
   Node *expr = parse_expr(pp, 0);
   expect(pp, SEMICOLON, "expected semicolon");
-  return expr;
+  Node *node = init_node(NULL, NULL, 0);
+  node->kind = NK_ExprStmt;
+  node->left = expr;
+  return node;
 }
 
 static Node *parse_expr_or_assign_nosemi(Token **pp) {
@@ -265,6 +265,8 @@ static Node *parse_expr_or_assign_nosemi(Token **pp) {
        expr->op == MINUS_EQUALS) && expr->left &&
       expr->left->kind == NK_Identifier) {
     expr->kind = NK_AssignStmt;
+    if (!expr->value && expr->left && expr->left->value)
+      expr->value = strdup(expr->left->value);
   }
   return expr;
 }
@@ -388,7 +390,10 @@ static Node *parse_stmt(Token **pp) {
   default: {
     Node *expr = parse_expr(pp, 0);
     expect(pp, SEMICOLON, "expected semicolon");
-    return expr;
+    Node *node = init_node(NULL, NULL, 0);
+    node->kind = NK_ExprStmt;
+    node->left = expr;
+    return node;
   }
   }
 }
