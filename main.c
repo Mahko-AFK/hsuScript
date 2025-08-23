@@ -6,6 +6,7 @@
 #include "lexer.h"
 #include "parser.h"
 #include "tools.h"
+#include "codegen.h"
 
 void print_tokens(Token *t) {
   size_t i = 0;
@@ -29,8 +30,10 @@ int main(int argc, char *argv[]) {
   print_tokens(tokens);
   
   Node *root = parser(tokens);
-  
+
   printf("Printing AST (Abstract Syntax Tree):\n");
   print_tree(root, 0, "Root", 0);
-  
+
+  generate_code(root, "out.asm");
+
 }
