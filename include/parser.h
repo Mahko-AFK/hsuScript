@@ -21,9 +21,9 @@ typedef enum {
   NK_Literal,
 } NodeKind;
 
-// Forward declaration so we can reference Node inside Vec before the
-// full structure is defined.
+// Forward declarations
 struct Node;
+typedef struct Type Type;
 
 // Simple growable array used for storing block children.  It mirrors a
 // small subset of functionality of more feature rich vector types.
@@ -44,6 +44,7 @@ typedef struct Node {
   struct Node *right;
   struct Node *left;
   Vec children;      // Used when this node represents a block
+  Type *ty;          // Inferred semantic type
 } Node;
 
 // Basic initializer for AST nodes.

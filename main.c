@@ -7,6 +7,7 @@
 #include "parser.h"
 #include "tools.h"
 #include "codegen.h"
+#include "sem.h"
 
 void print_tokens(Token *t) {
   size_t i = 0;
@@ -33,6 +34,8 @@ int main(int argc, char *argv[]) {
 
   printf("Printing AST (Abstract Syntax Tree):\n");
   print_tree(root, 0, "Root", 0);
+
+  sem_program(root);
 
   generate_code(root, "out.asm");
   free_tree(root);

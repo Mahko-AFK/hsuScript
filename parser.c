@@ -25,6 +25,7 @@ Node *init_node(Node *node, const char *value, TokenType type) {
   node->children.items = NULL;
   node->children.len = 0;
   node->children.cap = 0;
+  node->ty = NULL;
   return node;
 }
 
