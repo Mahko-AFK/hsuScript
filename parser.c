@@ -171,8 +171,6 @@ Node *handle_exit_syscall(Token **pp, Node *current){
       print_error("Invalid Syntax on OPEN", current_token->line_num);
     }
     if(current_token->type == OPEN_PAREN){
-      Node *open_paren_node = init_node(NULL, current_token->value, OPEN_PAREN);
-      current->left = open_paren_node;
       next(&current_token);
       if(current_token->type == END_OF_TOKENS){
         print_error("Invalid Syntax on INT", current_token->line_num);
@@ -185,23 +183,19 @@ Node *handle_exit_syscall(Token **pp, Node *current){
         } else {
           prev(&current_token);
           Node *expr_node = init_node(NULL, current_token->value, current_token->type);
-          current->left->left = expr_node;
+          current->left = expr_node;
         }
         next(&current_token);
         if(current_token->type == END_OF_TOKENS){
           print_error("Invalid Syntax on cLOSE", current_token->line_num);
         }
         if(current_token->type == CLOSE_PAREN && current_token->type != END_OF_TOKENS){
-          Node *close_paren_node = init_node(NULL, current_token->value, CLOSE_PAREN);
-          current->left->right = close_paren_node;
           next(&current_token);
           if(current_token->type == END_OF_TOKENS){
             print_error("Invalid Syntax on SEMI", current_token->line_num);
           }
           if(current_token->type == SEMICOLON){
-            Node *semi_node = init_node(NULL, current_token->value, SEMICOLON);
-            current->right = semi_node;
-            current = semi_node;
+            next(&current_token);
           } else {
             print_error("Invalid Syntax on SEMI", current_token->line_num);
           }
@@ -348,12 +342,11 @@ Node *create_variable_reusage(Token **pp, Node *current){
   }
   handle_token_errors("Invalid Syntax After Expression", current_token, is_separator(current_token->type));
 
-  current = main_identifier_node;
   if(current_token->type == SEMICOLON){
-    Node *semi_node = init_node(NULL, current_token->value, SEMICOLON);
-    current->right = semi_node;
-    current = semi_node;
+    next(&current_token);
   }
+
+  current = main_identifier_node;
   *pp = current_token;
   return current;
 }
@@ -413,17 +406,12 @@ Node *handle_if(Token **pp, Node *current){
                       expr_tok->type == INT || expr_tok->type == STRING ||
                       expr_tok->type == IDENTIFIER || expr_tok->type == BOOL);
   Node *expr_node = init_node(NULL, expr_tok->value, expr_tok->type);
-  Node *open_paren_node = init_node(NULL, "(", OPEN_PAREN);
-  current->left = open_paren_node;
-  open_paren_node->left = expr_node;
+  current->left = expr_node;
   next(pp);
   while(peek(pp)->type != CLOSE_PAREN && peek(pp)->type != END_OF_TOKENS){
     next(pp);
   }
   expect(pp, CLOSE_PAREN, "Invalid Syntax on CLOSE");
-  Node *close_paren_node = init_node(NULL, ")", CLOSE_PAREN);
-  open_paren_node->right = close_paren_node;
-  current = close_paren_node;
   return current;
 }
 
@@ -457,21 +445,16 @@ Node *handle_fn(Token **pp, Node *current){
   current->left = identifier_node;
 
   expect(pp, OPEN_PAREN, "Invalid Syntax on OPEN");
-  Node *open_paren_node = init_node(NULL, "(", OPEN_PAREN);
-  identifier_node->left = open_paren_node;
-
+  while(peek(pp)->type != CLOSE_PAREN && peek(pp)->type != END_OF_TOKENS){
+    next(pp);
+  }
   expect(pp, CLOSE_PAREN, "Invalid Syntax on CLOSE");
-  Node *close_paren_node = init_node(NULL, ")", CLOSE_PAREN);
-  open_paren_node->right = close_paren_node;
-  current = close_paren_node;
-  return current;
+  return fn_node;
 }
 Node *parser(Token *tokens){
   Token *current_token = tokens;
   Node *root = init_node(NULL, NULL, BEGINNING);
   Node *current = root;
-  Node *open_curly = NULL;
-
   curly_stack *stack = malloc(sizeof(curly_stack));
   stack->top = -1;
   if (!push_curly(stack, root)) {
@@ -536,24 +519,18 @@ Node *parser(Token *tokens){
         after_if_block = false;
         break;
       case OPEN_CURLY:
-        open_curly = init_node(NULL, tok->value, tok->type);
-        current->left = open_curly;
-        if (!push_curly(stack, open_curly)) {
+        if (!push_curly(stack, current)) {
           printf("ERROR: curly stack overflow\n");
           exit(1);
         }
-        current = open_curly;
         next(pp);
         break;
       case CLOSE_CURLY: {
-        Node *close_curly = init_node(NULL, tok->value, tok->type);
-        open_curly = pop_curly(stack);
-        if(open_curly == NULL){
+        Node *popped = pop_curly(stack);
+        if(popped == NULL){
           printf("ERROR: Expected Open Parenthesis!\n");
           exit(1);
         }
-        current->right = close_curly;
-        current = close_curly;
         if(allow_else){ after_if_block = true; }
         next(pp);
         break; }
