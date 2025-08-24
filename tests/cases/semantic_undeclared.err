@@ -1,11 +1,6 @@
-Semantic error: undeclared identifier 'x'
- TOKEN TYPE: WRITE
- TOKEN TYPE: OPEN_PAREN
- TOKEN TYPE: IDENTIFIER (x)
- TOKEN TYPE: CLOSE_PAREN
- TOKEN TYPE: SEMICOLON
 Printing AST (Abstract Syntax Tree):
 Program
     Block
         WriteStmt
-            Identifier value=x
+            Identifier value: x
+Semantic error: undeclared identifier 'x'

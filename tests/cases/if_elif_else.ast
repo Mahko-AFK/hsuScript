@@ -1,20 +1,20 @@
 Printing AST (Abstract Syntax Tree):
 Program
     Block
-        FnDecl value=main
+        FnDecl value: main
             Block
-                LetStmt value=value
-                    Bool value=true
+                LetStmt value: value
+                    Bool value: true
                 IfStmt
-                    Bool value=false
+                    Bool value: false
                     Block
                         WriteStmt
-                            String value=small
+                            String value: small
                     IfStmt
-                        Identifier value=value
+                        Identifier value: value
                         Block
                             WriteStmt
-                                String value=medium
+                                String value: medium
                         Block
                             WriteStmt
-                                String value=large
+                                String value: large

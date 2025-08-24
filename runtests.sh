@@ -1,43 +1,68 @@
-#!/bin/bash
-set -euo pipefail
+#!/usr/bin/env bash
+# ultra-minimal runner
+set -u
+cd "$(dirname "$0")"
 
-# Build the compiler
-./build.sh >/dev/null 2>&1
+echo "Building..."
+./build.sh || { echo "Build failed"; exit 1; }
+echo "Build OK."
 
-status=0
-for case in tests/cases/*.hsc; do
-  name=$(basename "$case" .hsc)
-  tmp=$(mktemp)
-  if [ -f "tests/cases/$name.ast" ]; then
-    ./build/hsc --ast-only "$case" >"$tmp" 2>&1
+# Discover tests robustly
+mapfile -d '' -t cases < <(find tests/cases -type f -name '*.hsc' -print0 | sort -z)
+echo "Discovered ${#cases[@]} test(s):"
+for c in "${cases[@]}"; do echo "  $c"; done
+(( ${#cases[@]} > 0 )) || { echo "No .hsc tests found."; exit 1; }
+
+strip_trailing() { sed -E 's/[[:space:]]+$//' "$1"; }
+
+total=0
+passed=0
+failed=0
+
+for case_path in "${cases[@]}"; do
+  name="$(basename "$case_path" .hsc)"
+  exp_ast="tests/cases/$name.ast"
+  exp_err="tests/cases/$name.err"
+  exp_exit="tests/cases/$name.exit"
+  tmp="$(mktemp)"
+  rc=0
+
+  # Prefer --ast-only when an .ast oracle exists; fall back if unsupported
+  if [[ -f "$exp_ast" ]]; then
+    if ./build/hsc --ast-only "$case_path" >"$tmp" 2>&1; then rc=0; else rc=$?; fi
+    # fallback if the binary doesn't know --ast-only
+    if grep -qiE 'unknown|invalid|usage' "$tmp"; then
+      : >"$tmp"
+      if ./build/hsc "$case_path" >"$tmp" 2>&1; then rc=0; else rc=$?; fi
+    fi
+
+    if diff -q <(strip_trailing "$exp_ast") <(strip_trailing "$tmp") >/dev/null && [[ $rc -eq 0 ]]; then
+      echo "[PASS] $name"; ((passed++))
+    else
+      echo "[FAIL] $name"; ((failed++))
+      # uncomment to inspect:
+      # sed -n '1,120p' "$tmp"
+    fi
+
+  elif [[ -f "$exp_err" && -f "$exp_exit" ]]; then
+    if ./build/hsc "$case_path" >"$tmp" 2>&1; then rc=0; else rc=$?; fi
+    expected_rc="$(cat "$exp_exit")"
+    if diff -q <(strip_trailing "$exp_err") <(strip_trailing "$tmp") >/dev/null && [[ "$rc" == "$expected_rc" ]]; then
+      echo "[PASS] $name"; ((passed++))
+    else
+      echo "[FAIL] $name"; ((failed++))
+      # echo "rc=$rc expected=$expected_rc"
+      # sed -n '1,120p' "$tmp"
+    fi
+
   else
-    ./build/hsc "$case" >"$tmp" 2>&1
+    echo "[FAIL] $name (no .ast or .err/.exit oracle)"; ((failed++))
   fi
-  rc=$?
-  if [ -f "tests/cases/$name.ast" ]; then
-    if ! diff -u <(sed -E 's/[[:space:]]+$//' "tests/cases/$name.ast") <(sed -E 's/[[:space:]]+$//' "$tmp"); then
-      echo "AST mismatch: $name" >&2
-      status=1
-    fi
-    if [ $rc -ne 0 ]; then
-      echo "Unexpected exit code $rc for $name" >&2
-      status=1
-    fi
-  elif [ -f "tests/cases/$name.err" ]; then
-    if ! diff -u <(sed -E 's/[[:space:]]+$//' "tests/cases/$name.err") <(sed -E 's/[[:space:]]+$//' "$tmp"); then
-      echo "Error output mismatch: $name" >&2
-      status=1
-    fi
-    expected_rc=$(cat "tests/cases/$name.exit")
-    if [ $rc -ne $expected_rc ]; then
-      echo "Exit code mismatch for $name: expected $expected_rc got $rc" >&2
-      status=1
-    fi
-  else
-    echo "No expected output for $name" >&2
-    status=1
-  fi
-  rm "$tmp"
+
+  ((total++))
+  rm -f "$tmp"
 done
 
-exit $status
+echo "----------------------------------------------------------------------"
+echo "Total: $total   Passed: $passed   Failed: $failed"
+[[ $failed -eq 0 ]] || exit 1

@@ -1,9 +1,9 @@
 Printing AST (Abstract Syntax Tree):
 Program
     Block
-        FnDecl value=main
+        FnDecl value: main
             Block
-                LetStmt value=a
-                    Assign op==
-                        Identifier value=b
-                        Int value=5
+                LetStmt value: a
+                    Assign op: =
+                        Identifier value: b
+                        Int value: 5

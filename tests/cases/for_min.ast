@@ -1,22 +1,22 @@
 Printing AST (Abstract Syntax Tree):
 Program
     Block
-        FnDecl value=main
+        FnDecl value: main
             Block
-                LetStmt value=i
-                    Int value=0
+                LetStmt value: i
+                    Int value: 0
                 ForStmt
-                    AssignStmt op== value=i
-                        Identifier value=i
-                        Int value=0
-                    Binary op=<
-                        Identifier value=i
-                        Int value=3
-                    AssignStmt op== value=i
-                        Identifier value=i
-                        Binary op=+
-                            Identifier value=i
-                            Int value=1
+                    AssignStmt op: = value: i
+                        Identifier value: i
+                        Int value: 0
+                    Binary op: <
+                        Identifier value: i
+                        Int value: 3
+                    AssignStmt op: = value: i
+                        Identifier value: i
+                        Binary op: +
+                            Identifier value: i
+                            Int value: 1
                     Block
                         WriteStmt
-                            Identifier value=i
+                            Identifier value: i

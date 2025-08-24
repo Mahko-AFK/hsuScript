@@ -130,10 +130,10 @@ void print_tree(Node *node, int indent) {
   printf("%s", kind_name(node->kind));
 
   if (node->op || node->kind == NK_Assign || node->kind == NK_AssignStmt)
-    printf(" op=%s", op_name(node->op));
+    printf(" op: %s", op_name(node->op));
 
   if (node->value)
-    printf(" value=%s", node->value);
+    printf(" value: %s", node->value);
 
   printf("\n");
 

@@ -1,16 +1,16 @@
 Printing AST (Abstract Syntax Tree):
 Program
     Block
-        FnDecl value=main
+        FnDecl value: main
             Block
                 ForStmt
-                    LetStmt value=i
-                        Int value=0
-                    Binary op=<
-                        Identifier value=i
-                        Int value=3
-                    Unary op=++
-                        Identifier value=i
+                    LetStmt value: i
+                        Int value: 0
+                    Binary op: <
+                        Identifier value: i
+                        Int value: 3
+                    Unary op: ++
+                        Identifier value: i
                     Block
                         WriteStmt
-                            Identifier value=i
+                            Identifier value: i
