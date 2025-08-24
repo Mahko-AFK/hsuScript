@@ -1,0 +1,23 @@
+Printing AST (Abstract Syntax Tree):
+Program
+    Block
+        FnDecl value: main
+            Block
+                IfStmt
+                    Bool value: false
+                    Block
+                        WriteStmt
+                            String value: a
+                    IfStmt
+                        Bool value: false
+                        Block
+                            WriteStmt
+                                String value: b
+                        IfStmt
+                            Bool value: true
+                            Block
+                                WriteStmt
+                                    String value: c
+                            Block
+                                WriteStmt
+                                    String value: d

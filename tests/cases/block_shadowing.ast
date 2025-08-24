@@ -1,0 +1,8 @@
+Printing AST (Abstract Syntax Tree):
+Program
+    Block
+        LetStmt value: x
+            Int value: 1
+        Block
+            LetStmt value: x
+                Int value: 2
