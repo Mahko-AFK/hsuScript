@@ -314,7 +314,8 @@ static Node *parse_let(Token **pp, bool expect_semi) {
   return node;
 }
 
-static Node *expr_to_stmt(Node *expr) {
+static Node *parse_assign_or_expr(Token **pp) {
+  Node *expr = parse_expr(pp, 0);
   if (expr && expr->kind == NK_Assign && expr->left &&
       expr->left->kind == NK_Identifier) {
     Node *node = init_node(NULL, NULL, 0);
@@ -322,6 +323,7 @@ static Node *expr_to_stmt(Node *expr) {
     node->op = expr->op;
     node->left = expr->left;
     node->right = expr->right;
+    node->value = strdup(expr->left->value);
     free(expr);
     return node;
   }
@@ -378,8 +380,7 @@ static Node *parse_for(Token **pp) {
     if (peek(pp)->type == LET)
       init = parse_let(pp, false);
     else {
-      Node *expr = parse_expr(pp, 0);
-      init = expr_to_stmt(expr);
+      init = parse_assign_or_expr(pp);
     }
   }
   expect(pp, SEMICOLON, "expected semicolon");
@@ -393,8 +394,7 @@ static Node *parse_for(Token **pp) {
 
   Node *step = NULL;
   if (peek(pp)->type != CLOSE_PAREN) {
-    Node *expr = parse_expr(pp, 0);
-    step = expr_to_stmt(expr);
+    step = parse_assign_or_expr(pp);
   }
   expect(pp, CLOSE_PAREN, "expected )");
   vec_push(&node->children, step);
@@ -450,9 +450,9 @@ static Node *parse_stmt(Token **pp) {
   case OPEN_CURLY:
     return parse_block(pp);
   default: {
-    Node *expr = parse_expr(pp, 0);
+    Node *stmt = parse_assign_or_expr(pp);
     expect(pp, SEMICOLON, "expected semicolon");
-    return expr_to_stmt(expr);
+    return stmt;
   }
   }
 }

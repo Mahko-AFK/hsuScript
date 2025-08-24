@@ -158,7 +158,11 @@ static void sem_let(Node *stmt, Scope *scope) {
 }
 
 static void sem_assign(Node *stmt, Scope *scope) {
-  const char *name = stmt->value;
+  const char *name = NULL;
+  if (stmt->left && stmt->left->value)
+    name = stmt->left->value;
+  else
+    name = stmt->value;
   Type *lhs = scope_lookup(scope, name);
   if (!lhs) sem_error("undeclared identifier", name);
   Type *rhs = sem_expr(stmt->right, scope);
