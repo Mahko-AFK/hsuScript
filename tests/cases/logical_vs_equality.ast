@@ -1,0 +1,14 @@
+Printing AST (Abstract Syntax Tree):
+Program
+    Block
+        FnDecl value: main
+            Block
+                IfStmt
+                    Binary op: ||
+                        Binary op: ==
+                            Identifier value: a
+                            Identifier value: b
+                        Binary op: &&
+                            Identifier value: c
+                            Identifier value: d
+                    Block

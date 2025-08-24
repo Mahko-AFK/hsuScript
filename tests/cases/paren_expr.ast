@@ -1,0 +1,11 @@
+Printing AST (Abstract Syntax Tree):
+Program
+    Block
+        FnDecl value: main
+            Block
+                WriteStmt
+                    Binary op: *
+                        Binary op: +
+                            Identifier value: a
+                            Identifier value: b
+                        Identifier value: c

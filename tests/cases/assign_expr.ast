@@ -1,0 +1,9 @@
+Printing AST (Abstract Syntax Tree):
+Program
+    Block
+        FnDecl value: main
+            Block
+                WriteStmt
+                    Assign op: =
+                        Identifier value: x
+                        Int value: 1

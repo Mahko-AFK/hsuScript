@@ -1,0 +1,12 @@
+Printing AST (Abstract Syntax Tree):
+Program
+    Block
+        LetStmt value: a
+            Int value: 0
+        LetStmt value: b
+            Int value: 0
+        AssignStmt op: = value: a
+            Identifier value: a
+            Assign op: =
+                Identifier value: b
+                Int value: 1
