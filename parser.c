@@ -247,6 +247,20 @@ static Node *parse_expr(Token **pp, int minbp) {
       break;
     TokenType op = tok->type;
     next(pp);
+    // Handle post-increment/decrement used without a right operand.
+    TokenType next_type = peek(pp)->type;
+    if ((op == PLUS_PLUS || op == MINUS_MINUS) &&
+        (next_type == SEMICOLON || next_type == CLOSE_PAREN ||
+         next_type == CLOSE_CURLY || next_type == CLOSE_BRACKET ||
+         next_type == COMMA || next_type == END_OF_TOKENS)) {
+      Node *node = init_node(NULL, NULL, 0);
+      node->kind = NK_Unary;
+      node->op = op;
+      node->left = left;
+      left = node;
+      continue;
+    }
+
     int rb = lb - (op == ASSIGNMENT || op == PLUS_EQUALS || op == MINUS_EQUALS);
     Node *right = parse_expr(pp, rb);
     Node *node = init_node(NULL, NULL, 0);
@@ -314,7 +328,7 @@ static Node *parse_let(Token **pp, bool expect_semi) {
   return node;
 }
 
-static Node *parse_assign_or_expr(Token **pp) {
+static Node *parse_expr_or_assign_nosemi(Token **pp) {
   Node *expr = parse_expr(pp, 0);
   if (expr && expr->kind == NK_Assign && expr->left &&
       expr->left->kind == NK_Identifier) {
@@ -327,6 +341,13 @@ static Node *parse_assign_or_expr(Token **pp) {
     free(expr);
     return node;
   }
+  return expr;
+}
+
+static Node *parse_assign_or_expr(Token **pp) {
+  Node *expr = parse_expr_or_assign_nosemi(pp);
+  if (expr && expr->kind == NK_AssignStmt)
+    return expr;
   Node *node = init_node(NULL, NULL, 0);
   node->kind = NK_ExprStmt;
   node->left = expr;
@@ -394,7 +415,7 @@ static Node *parse_for(Token **pp) {
 
   Node *step = NULL;
   if (peek(pp)->type != CLOSE_PAREN) {
-    step = parse_assign_or_expr(pp);
+    step = parse_expr_or_assign_nosemi(pp);
   }
   expect(pp, CLOSE_PAREN, "expected )");
   vec_push(&node->children, step);
