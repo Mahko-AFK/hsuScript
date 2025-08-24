@@ -98,6 +98,18 @@ Type *sem_expr(Node *node, Scope *scope) {
       return node->ty;
     }
   }
+  case NK_Assign: {
+    Type *lt = sem_expr(node->left, scope);
+    Type *rt = sem_expr(node->right, scope);
+    if (node->op == PLUS_EQUALS || node->op == MINUS_EQUALS) {
+      if (lt != type_int() || rt != type_int())
+        sem_error("compound assignment on non-integers", NULL);
+    }
+    if (lt != rt)
+      sem_error("assignment of incompatible types", NULL);
+    node->ty = lt;
+    return node->ty;
+  }
   case NK_Binary: {
     Type *lt = sem_expr(node->left, scope);
     Type *rt = sem_expr(node->right, scope);
@@ -125,13 +137,6 @@ Type *sem_expr(Node *node, Scope *scope) {
       if (lt != type_bool() || rt != type_bool())
         sem_error("logical operator on non-bools", NULL);
       node->ty = type_bool();
-      return node->ty;
-    case PLUS_EQUALS:
-    case MINUS_EQUALS:
-      // Treat like arithmetic assignment; both sides must be int
-      if (lt != type_int() || rt != type_int())
-        sem_error("compound assignment on non-integers", NULL);
-      node->ty = type_int();
       return node->ty;
     default:
       node->ty = type_unknown();
