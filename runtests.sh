@@ -45,7 +45,7 @@ for case_path in "${cases[@]}"; do
     fi
 
   elif [[ -f "$exp_err" && -f "$exp_exit" ]]; then
-    if ./build/hsc "$case_path" >"$tmp" 2>&1; then rc=0; else rc=$?; fi
+    if ./build/hsc --ast-only "$case_path" >"$tmp" 2>&1; then rc=0; else rc=$?; fi
     expected_rc="$(cat "$exp_exit")"
     if diff -q <(strip_trailing "$exp_err") <(strip_trailing "$tmp") >/dev/null && [[ "$rc" == "$expected_rc" ]]; then
       echo "[PASS] $name"; ((passed++))

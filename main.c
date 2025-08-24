@@ -49,6 +49,8 @@ int main(int argc, char *argv[]) {
   printf("Printing AST (Abstract Syntax Tree):\n");
   print_tree(root, 0);
 
+  fflush(stdout);
+
   sem_program(root);
 
   generate_code(root, "out.asm");
