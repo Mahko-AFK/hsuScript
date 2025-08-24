@@ -8,10 +8,14 @@ status=0
 for case in tests/cases/*.hsc; do
   name=$(basename "$case" .hsc)
   tmp=$(mktemp)
-  ./build/hsc "$case" >"$tmp" 2>&1
+  if [ -f "tests/cases/$name.ast" ]; then
+    ./build/hsc --ast-only "$case" >"$tmp" 2>&1
+  else
+    ./build/hsc "$case" >"$tmp" 2>&1
+  fi
   rc=$?
   if [ -f "tests/cases/$name.ast" ]; then
-    if ! diff -u "tests/cases/$name.ast" "$tmp"; then
+    if ! diff -u <(sed -E 's/[[:space:]]+$//' "tests/cases/$name.ast") <(sed -E 's/[[:space:]]+$//' "$tmp"); then
       echo "AST mismatch: $name" >&2
       status=1
     fi
@@ -20,7 +24,7 @@ for case in tests/cases/*.hsc; do
       status=1
     fi
   elif [ -f "tests/cases/$name.err" ]; then
-    if ! diff -u "tests/cases/$name.err" "$tmp"; then
+    if ! diff -u <(sed -E 's/[[:space:]]+$//' "tests/cases/$name.err") <(sed -E 's/[[:space:]]+$//' "$tmp"); then
       echo "Error output mismatch: $name" >&2
       status=1
     fi

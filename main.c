@@ -18,8 +18,20 @@ void print_tokens(Token *t) {
 }
 
 int main(int argc, char *argv[]) {
-  FILE *file;
-  file = fopen(argv[1], "r");
+  int ast_only = 0;
+  int argi = 1;
+
+  if (argc > argi && strcmp(argv[argi], "--ast-only") == 0) {
+    ast_only = 1;
+    argi++;
+  }
+
+  if (argc <= argi) {
+    fprintf(stderr, "Usage: %s [--ast-only] <file>\n", argv[0]);
+    return 1;
+  }
+
+  FILE *file = fopen(argv[argi], "r");
 
   if(!file){
     printf("ERROR: File not found\n");
@@ -27,9 +39,11 @@ int main(int argc, char *argv[]) {
   }
 
   Token *tokens = lexer(file);
-  
-  print_tokens(tokens);
-  
+
+  if(!ast_only){
+    print_tokens(tokens);
+  }
+
   Node *root = parser(tokens);
 
   printf("Printing AST (Abstract Syntax Tree):\n");
