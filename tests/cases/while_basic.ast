@@ -1,0 +1,19 @@
+Printing AST (Abstract Syntax Tree):
+Program
+    Block
+        FnDecl value: main
+            Block
+                LetStmt value: i
+                    Int value: 0
+                WhileStmt
+                    Binary op: <
+                        Identifier value: i
+                        Int value: 2
+                    Block
+                        WriteStmt
+                            Identifier value: i
+                        AssignStmt op: = value: i
+                            Identifier value: i
+                            Binary op: +
+                                Identifier value: i
+                                Int value: 1

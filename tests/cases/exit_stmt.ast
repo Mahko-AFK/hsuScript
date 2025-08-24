@@ -1,0 +1,9 @@
+Printing AST (Abstract Syntax Tree):
+Program
+    Block
+        FnDecl value: main
+            Block
+                WriteStmt
+                    String value: before exit
+                ExitStmt
+                    Int value: 0

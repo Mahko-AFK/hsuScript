@@ -1,0 +1,11 @@
+Printing AST (Abstract Syntax Tree):
+Program
+    Block
+        FnDecl value: main
+            Block
+                LetStmt value: s
+                    Binary op: +
+                        String value: hsu
+                        String value: Script
+                WriteStmt
+                    Identifier value: s
