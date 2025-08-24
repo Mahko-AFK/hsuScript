@@ -19,6 +19,7 @@ typedef enum {
   NK_ExitStmt,
   NK_Unary,
   NK_Binary,
+  NK_Assign,   // assignment expression
   NK_Int,
   NK_String,
   NK_Bool,

@@ -38,6 +38,8 @@ static const char *kind_name(NodeKind kind) {
     return "Unary";
   case NK_Binary:
     return "Binary";
+  case NK_Assign:
+    return "Assign";
   case NK_Int:
     return "Int";
   case NK_String:
@@ -127,7 +129,7 @@ void print_tree(Node *node, int indent) {
 
   printf("%s", kind_name(node->kind));
 
-  if (node->op)
+  if (node->op || node->kind == NK_Assign || node->kind == NK_AssignStmt)
     printf(" op=%s", op_name(node->op));
 
   if (node->value)
@@ -245,12 +247,13 @@ static Node *parse_expr(Token **pp, int minbp) {
       break;
     TokenType op = tok->type;
     next(pp);
-    int rb = (op == ASSIGNMENT || op == PLUS_EQUALS || op == MINUS_EQUALS)
-                 ? lb - 1
-                 : lb;
+    int rb = lb - (op == ASSIGNMENT || op == PLUS_EQUALS || op == MINUS_EQUALS);
     Node *right = parse_expr(pp, rb);
     Node *node = init_node(NULL, NULL, 0);
-    node->kind = NK_Binary;
+    if (op == ASSIGNMENT || op == PLUS_EQUALS || op == MINUS_EQUALS)
+      node->kind = NK_Assign;
+    else
+      node->kind = NK_Binary;
     node->op = op;
     node->left = left;
     node->right = right;
@@ -311,40 +314,21 @@ static Node *parse_let(Token **pp, bool expect_semi) {
   return node;
 }
 
-static Node *parse_assign_or_expr(Token **pp) {
-  Token *start = expect(pp, IDENTIFIER, "expected identifier");
-  TokenType t = peek(pp)->type;
-  if (t == ASSIGNMENT || t == PLUS_EQUALS || t == MINUS_EQUALS) {
-    next(pp); // consume operator
-    Node *expr = parse_expr(pp, 0);
-    expect(pp, SEMICOLON, "expected semicolon");
-    Node *node = init_node(NULL, start->value, 0);
+static Node *expr_to_stmt(Node *expr) {
+  if (expr && expr->kind == NK_Assign && expr->left &&
+      expr->left->kind == NK_Identifier) {
+    Node *node = init_node(NULL, NULL, 0);
     node->kind = NK_AssignStmt;
-    node->op = t;
-    node->right = expr;
+    node->op = expr->op;
+    node->left = expr->left;
+    node->right = expr->right;
+    free(expr);
     return node;
   }
-  // not an assignment, treat as expression statement
-  prev(pp); // put identifier back for expression parsing
-  Node *expr = parse_expr(pp, 0);
-  expect(pp, SEMICOLON, "expected semicolon");
   Node *node = init_node(NULL, NULL, 0);
   node->kind = NK_ExprStmt;
   node->left = expr;
   return node;
-}
-
-static Node *parse_expr_or_assign_nosemi(Token **pp) {
-  Node *expr = parse_expr(pp, 0);
-  if (expr->kind == NK_Binary &&
-      (expr->op == ASSIGNMENT || expr->op == PLUS_EQUALS ||
-       expr->op == MINUS_EQUALS) && expr->left &&
-      expr->left->kind == NK_Identifier) {
-    expr->kind = NK_AssignStmt;
-    if (!expr->value && expr->left && expr->left->value)
-      expr->value = strdup(expr->left->value);
-  }
-  return expr;
 }
 
 static Node *parse_if_internal(Token **pp, bool consumed_kw) {
@@ -393,8 +377,10 @@ static Node *parse_for(Token **pp) {
   if (peek(pp)->type != SEMICOLON) {
     if (peek(pp)->type == LET)
       init = parse_let(pp, false);
-    else
-      init = parse_expr_or_assign_nosemi(pp);
+    else {
+      Node *expr = parse_expr(pp, 0);
+      init = expr_to_stmt(expr);
+    }
   }
   expect(pp, SEMICOLON, "expected semicolon");
   vec_push(&node->children, init);
@@ -406,8 +392,10 @@ static Node *parse_for(Token **pp) {
   vec_push(&node->children, cond);
 
   Node *step = NULL;
-  if (peek(pp)->type != CLOSE_PAREN)
-    step = parse_expr_or_assign_nosemi(pp);
+  if (peek(pp)->type != CLOSE_PAREN) {
+    Node *expr = parse_expr(pp, 0);
+    step = expr_to_stmt(expr);
+  }
   expect(pp, CLOSE_PAREN, "expected )");
   vec_push(&node->children, step);
 
@@ -461,15 +449,10 @@ static Node *parse_stmt(Token **pp) {
     return parse_fn(pp);
   case OPEN_CURLY:
     return parse_block(pp);
-  case IDENTIFIER:
-    return parse_assign_or_expr(pp);
   default: {
     Node *expr = parse_expr(pp, 0);
     expect(pp, SEMICOLON, "expected semicolon");
-    Node *node = init_node(NULL, NULL, 0);
-    node->kind = NK_ExprStmt;
-    node->left = expr;
-    return node;
+    return expr_to_stmt(expr);
   }
   }
 }

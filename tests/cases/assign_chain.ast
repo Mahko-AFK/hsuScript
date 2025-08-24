@@ -17,6 +17,6 @@ Program
         FnDecl value=main
             Block
                 LetStmt value=a
-                    Binary op==
+                    Assign op==
                         Identifier value=b
                         Int value=5

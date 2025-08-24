@@ -40,13 +40,13 @@ Program
                 LetStmt value=i
                     Int value=0
                 ForStmt
-                    AssignStmt op== value=i
+                    AssignStmt op==
                         Identifier value=i
                         Int value=0
                     Binary op=<
                         Identifier value=i
                         Int value=3
-                    AssignStmt op== value=i
+                    AssignStmt op==
                         Identifier value=i
                         Binary op=+
                             Identifier value=i
