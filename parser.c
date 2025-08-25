@@ -120,6 +120,11 @@ Node *init_node(Node *node, const char *value, TokenType type) {
   return node;
 }
 
+// Return the node's identifier name or "<null>" if none.
+const char *node_name(const Node *node) {
+  return (node && node->value) ? node->value : "<null>";
+}
+
 // --- tree printer ----------------------------------------------------------
 void print_tree(Node *node, int indent) {
   if (!node)
@@ -134,7 +139,7 @@ void print_tree(Node *node, int indent) {
     printf(" op: %s", op_name(node->op));
 
   if (node->value)
-    printf(" value: %s", node->value);
+    printf(" value: %s", node_name(node));
 
   printf("\n");
 

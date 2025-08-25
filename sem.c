@@ -76,7 +76,7 @@ Type *sem_expr(Node *node, Scope *scope) {
     return node->ty = type_bool();
   case NK_Identifier: {
     Type *t = scope_lookup(scope, node->value);
-    if (!t) sem_error("undeclared identifier", node->value);
+    if (!t) sem_error("undeclared identifier", node_name(node));
     return node->ty = t;
   }
   case NK_Unary: {
@@ -158,7 +158,7 @@ static void sem_let(Node *stmt, Scope *scope) {
   if (stmt->right)
     t = sem_expr(stmt->right, scope);
   if (!scope_insert(scope, name, t))
-    sem_error("duplicate identifier", name);
+    sem_error("duplicate identifier", node_name(stmt));
   stmt->ty = type_void();
 }
 
@@ -169,9 +169,9 @@ static void sem_assign(Node *stmt, Scope *scope) {
   else
     sem_error("assignment missing identifier", NULL);
   Type *lhs = scope_lookup(scope, name);
-  if (!lhs) sem_error("undeclared identifier", name);
+  if (!lhs) sem_error("undeclared identifier", node_name(stmt->left));
   Type *rhs = sem_expr(stmt->right, scope);
-  if (lhs != rhs) sem_error("assignment of incompatible types", name);
+  if (lhs != rhs) sem_error("assignment of incompatible types", node_name(stmt->left));
   stmt->ty = lhs;
 }
 
