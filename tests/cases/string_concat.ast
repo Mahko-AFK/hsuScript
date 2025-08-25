@@ -9,3 +9,9 @@ Program
                         String value: Script
                 WriteStmt
                     Identifier value: s
+                LetStmt value: t
+                    Binary op: +
+                        Identifier value: s
+                        String value: !
+                WriteStmt
+                    Identifier value: t
