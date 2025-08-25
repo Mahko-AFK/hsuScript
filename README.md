@@ -1,8 +1,4 @@
 # hsuScript
-
-[![Build](https://github.com/Mahko-AFK/hsuScript/actions/workflows/build.yml/badge.svg)](https://github.com/Mahko-AFK/hsuScript/actions/workflows/build.yml)
-[![Tests](https://github.com/Mahko-AFK/hsuScript/actions/workflows/tests.yml/badge.svg)](https://github.com/Mahko-AFK/hsuScript/actions/workflows/tests.yml)
-
 hsuScript is a small educational compiler written in C that demonstrates the complete pipeline from lexical analysis to runtime execution, aiming to provide an approachable example for developers interested in learning how compilers work and how languages are designed.
 
 ## About hsuScript
