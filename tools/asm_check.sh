@@ -6,19 +6,13 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 BUILD_DIR=build
-RT_SRC=runtime/rt.c
-RT_OBJ="$BUILD_DIR/rt.o"
+RT_OBJ="$BUILD_DIR/rt_tmp.o"
 
 mkdir -p "$BUILD_DIR"
 
-# Compile runtime if needed
-if [[ ! -f "$RT_SRC" ]]; then
-  echo "missing runtime source: $RT_SRC" >&2
+if ! ./build/hsc --dump-rt "$RT_OBJ" >/dev/null; then
+  echo "failed to dump runtime object" >&2
   exit 1
-fi
-if [[ ! -f "$RT_OBJ" || "$RT_SRC" -nt "$RT_OBJ" ]]; then
-  echo "  CC  $RT_SRC"
-  gcc -Iinclude -Wall -Wextra -c "$RT_SRC" -o "$RT_OBJ"
 fi
 
 GREEN='\e[32m'
