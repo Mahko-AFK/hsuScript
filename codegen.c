@@ -5,6 +5,7 @@
 #include <string.h>
 
 #include "codegen.h"
+#include "sem.h"
 
 typedef struct {
     const char *name;
@@ -13,12 +14,12 @@ typedef struct {
 } Symbol;
 
 /* Simple scope stack ------------------------------------------------------ */
-typedef struct Scope {
+typedef struct CGScope {
     Symbol *items;
     size_t len;
     size_t cap;
-    struct Scope *parent;
-} Scope;
+    struct CGScope *parent;
+} CGScope;
 
 typedef struct {
     char **items;
@@ -30,7 +31,7 @@ struct Codegen {
     FILE *out;
     int next_label;
     StrVec strs;
-    Scope *scope;         /* current innermost scope */
+    CGScope *scope;         /* current innermost scope */
     int frame_size;
 };
 
@@ -76,7 +77,7 @@ static int count_locals(Node *node) {
 /* Scope and symbol helpers                                                 */
 
 static void scope_push(Codegen *cg) {
-    Scope *s = calloc(1, sizeof(Scope));
+    CGScope *s = calloc(1, sizeof(CGScope));
     if (!s) return;
     s->items = NULL;
     s->len = s->cap = 0;
@@ -86,7 +87,7 @@ static void scope_push(Codegen *cg) {
 
 static void scope_pop(Codegen *cg) {
     if (!cg->scope) return;
-    Scope *s = cg->scope;
+    CGScope *s = cg->scope;
     cg->scope = s->parent;
     for (size_t i = 0; i < s->len; i++)
         free((char *)s->items[i].name);
@@ -96,7 +97,7 @@ static void scope_pop(Codegen *cg) {
 
 static int sym_add(Codegen *cg, const char *name, bool is_string) {
     if (!cg->scope) return -1;
-    Scope *s = cg->scope;
+    CGScope *s = cg->scope;
     if (s->len == s->cap) {
         s->cap = s->cap ? s->cap * 2 : 8;
         s->items = realloc(s->items, s->cap * sizeof(*s->items));
@@ -110,7 +111,7 @@ static int sym_add(Codegen *cg, const char *name, bool is_string) {
 }
 
 static int sym_lookup(Codegen *cg, const char *name, bool *is_string) {
-    for (Scope *s = cg->scope; s; s = s->parent) {
+    for (CGScope *s = cg->scope; s; s = s->parent) {
         for (size_t i = 0; i < s->len; i++) {
             if (strcmp(s->items[i].name, name) == 0) {
                 if (is_string) *is_string = s->items[i].is_string;
@@ -145,8 +146,8 @@ void codegen_free(Codegen *cg) {
     }
     free(cg->strs.items);
     /* free scope chain */
-    for (Scope *s = cg->scope; s;) {
-        Scope *parent = s->parent;
+    for (CGScope *s = cg->scope; s;) {
+        CGScope *parent = s->parent;
         for (size_t i = 0; i < s->len; i++)
             free((char*)s->items[i].name);
         free(s->items);
@@ -157,12 +158,13 @@ void codegen_free(Codegen *cg) {
 }
 
 static void emit_exit(Codegen *cg, Node *node, bool *has_exit) {
-    Node *paren = node->left;
-    Node *arg = paren ? paren->left : NULL;
-    const char *status = arg && arg->value ? arg->value : "0";
-    emit(cg, "    mov rax, 60\n");
-    emit(cg, "    mov rdi, %s\n", status);
-    emit(cg, "    syscall\n");
+    if (node && node->left) {
+        gen_expr(cg, node->left);
+        emit(cg, "    mov edi, eax\n");
+    } else {
+        emit(cg, "    xor edi, edi\n");
+    }
+    emit(cg, "    call exit@PLT\n");
     *has_exit = true;
 }
 
@@ -349,12 +351,96 @@ static void emit_node(Codegen *cg, Node *node, bool *has_exit) {
             emit(cg, "    mov [rbp - %d], rax\n", off);
         break;
     }
+    case NK_WriteStmt: {
+        bool is_str = false;
+        if (node->left) {
+            if (node->left->ty && node->left->ty->kind == TY_STRING)
+                is_str = true;
+            else if (node->left->kind == NK_String)
+                is_str = true;
+            else if (node->left->kind == NK_Identifier) {
+                bool tmp = false;
+                sym_lookup(cg, node->left->value, &tmp);
+                is_str = tmp;
+            }
+        }
+        gen_expr(cg, node->left);
+        emit(cg, "    mov rdi, rax\n");
+        if (is_str)
+            emit(cg, "    call hsu_print_cstr@PLT\n");
+        else
+            emit(cg, "    call hsu_print_int@PLT\n");
+        break;
+    }
     case NK_ExprStmt:
         gen_expr(cg, node->left);
         break;
     case NK_ExitStmt:
         emit_exit(cg, node, has_exit);
         break;
+    case NK_IfStmt: {
+        int l_else = new_label(cg);
+        int l_end = new_label(cg);
+        if (node->left)
+            gen_expr(cg, node->left);
+        emit(cg, "    cmp rax, 0\n    je .L%d\n", l_else);
+        if (node->right)
+            emit_node(cg, node->right, has_exit);
+        emit(cg, "    jmp .L%d\n", l_end);
+        emit(cg, ".L%d:\n", l_else);
+        if (node->children.len > 0)
+            emit_node(cg, node->children.items[0], has_exit);
+        emit(cg, ".L%d:\n", l_end);
+        break;
+    }
+    case NK_WhileStmt: {
+        Node *cond = node->children.len > 0 ? node->children.items[0] : NULL;
+        Node *body = node->children.len > 1 ? node->children.items[1] : NULL;
+        int l_start = new_label(cg);
+        int l_end = new_label(cg);
+        emit(cg, ".L%d:\n", l_start);
+        if (cond) {
+            gen_expr(cg, cond);
+            emit(cg, "    cmp rax, 0\n    je .L%d\n", l_end);
+        }
+        if (body)
+            emit_node(cg, body, has_exit);
+        emit(cg, "    jmp .L%d\n", l_start);
+        emit(cg, ".L%d:\n", l_end);
+        break;
+    }
+    case NK_ForStmt: {
+        Node *init = node->children.len > 0 ? node->children.items[0] : NULL;
+        Node *cond = node->children.len > 1 ? node->children.items[1] : NULL;
+        Node *step = node->children.len > 2 ? node->children.items[2] : NULL;
+        Node *body = node->children.len > 3 ? node->children.items[3] : NULL;
+        scope_push(cg);
+        if (init) {
+            if (init->kind == NK_LetStmt || init->kind == NK_AssignStmt)
+                emit_node(cg, init, has_exit);
+            else
+                gen_expr(cg, init);
+        }
+        int l_start = new_label(cg);
+        int l_end = new_label(cg);
+        emit(cg, ".L%d:\n", l_start);
+        if (cond) {
+            gen_expr(cg, cond);
+            emit(cg, "    cmp rax, 0\n    je .L%d\n", l_end);
+        }
+        if (body)
+            emit_node(cg, body, has_exit);
+        if (step) {
+            if (step->kind == NK_AssignStmt)
+                emit_node(cg, step, has_exit);
+            else
+                gen_expr(cg, step);
+        }
+        emit(cg, "    jmp .L%d\n", l_start);
+        emit(cg, ".L%d:\n", l_end);
+        scope_pop(cg);
+        break;
+    }
     default:
         /* generic traversal */
         emit_node(cg, node->left, has_exit);
