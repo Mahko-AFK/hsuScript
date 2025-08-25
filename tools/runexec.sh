@@ -3,14 +3,12 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-# Build compiler
 echo "Building..."
 if ! ./tools/build.sh > /dev/null; then
   echo "Build failed" >&2
   exit 1
 fi
 
-# Compile runtime once
 BUILD_DIR=build
 RT_SRC=runtime/rt.c
 RT_OBJ="$BUILD_DIR/rt.o"
@@ -21,8 +19,6 @@ if ! gcc -Iinclude -Wall -Wextra -c "$RT_SRC" -o "$RT_OBJ"; then
   echo "Failed to compile runtime" >&2
   exit 1
 fi
-
-strip_trailing() { sed -E 's/[[:space:]]+$//' "$1"; }
 
 # Discover all .hsc test cases under tests/exec
 mapfile -d '' -t cases < <(find tests/exec -type f -name '*.hsc' -print0 | sort -z)
@@ -50,7 +46,6 @@ for case_path in "${cases[@]}"; do
   exp_out="$dir/$base.out"
   exp_exit="$dir/$base.exit"
 
-  # Use a path-derived name to avoid collisions between directories
   rel="${case_path#tests/exec/}"
   safe="${rel//\//_}"
   safe="${safe%.hsc}"
@@ -60,48 +55,58 @@ for case_path in "${cases[@]}"; do
   obj="$BUILD_DIR/$safe.o"
   exe="$BUILD_DIR/$safe"
 
-  # Only run execution tests when both .out and .exit oracles exist
   if [[ -f "$exp_out" && -f "$exp_exit" ]]; then
+    # Emit assembly
     if ! ./build/hsc --emit-asm "$asm" "$case_path" >/dev/null 2>&1; then
       printf '\e[31m[FAIL]\e[0m %s (emit)\n' "$name"
-      failed=$((failed+1))
-      total=$((total+1))
-      continue
+      failed=$((failed+1)); total=$((total+1)); continue
     fi
 
-    if ! gcc -c "$asm" -o "$obj"; then
+    # Assemble (silence executable-stack warnings)
+    # (You should ALSO add `.section .note.GNU-stack,"",@progbits` in emitted .s)
+    if ! gcc -Wa,--noexecstack -c "$asm" -o "$obj"; then
       printf '\e[31m[FAIL]\e[0m %s (assemble)\n' "$name"
-      failed=$((failed+1))
-      total=$((total+1))
-      continue
+      failed=$((failed+1)); total=$((total+1)); continue
     fi
 
+    # Link
     if ! gcc "$obj" "$RT_OBJ" -o "$exe"; then
       printf '\e[31m[FAIL]\e[0m %s (link)\n' "$name"
-      failed=$((failed+1))
-      total=$((total+1))
-      continue
+      failed=$((failed+1)); total=$((total+1)); continue
     fi
 
-    tmp="$(mktemp)"
-    if "$exe" >"$tmp"; then
+    # Run and capture RAW stdout + stderr (no normalization)
+    out_tmp="$(mktemp)"
+    err_tmp="$(mktemp)"
+    if "$exe" >"$out_tmp" 2>"$err_tmp"; then
       rc=0
     else
       rc=$?
     fi
 
     expected_rc="$(cat "$exp_exit")"
-    if diff -q <(strip_trailing "$exp_out") <(strip_trailing "$tmp") >/dev/null && [[ "$rc" == "$expected_rc" ]]; then
+
+    # Byte-for-byte comparison
+    if cmp -s "$exp_out" "$out_tmp" && [[ "$rc" == "$expected_rc" ]]; then
       printf '\e[32m[PASS]\e[0m %s\n' "$name"
       passed=$((passed+1))
     else
       printf '\e[31m[FAIL]\e[0m %s\n' "$name"
+      echo "Expected exit: $expected_rc, Got: $rc"
+      echo "---- diff (expected vs actual stdout; raw) ----"
+      diff -u "$exp_out" "$out_tmp" || true
+      if [[ -s "$err_tmp" ]]; then
+        echo "---------------- stderr ----------------"
+        # Show only first ~200 lines to avoid spam
+        sed -n '1,200p' "$err_tmp"
+      fi
+      echo "----------------------------------------"
       failed=$((failed+1))
     fi
-    rm -f "$tmp"
+
+    rm -f "$out_tmp" "$err_tmp"
     total=$((total+1))
   fi
-
 done
 
 echo "----------------------------------------------------------------------"

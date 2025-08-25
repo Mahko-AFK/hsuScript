@@ -1,4 +1,6 @@
-* text eol=lf
+* text=auto eol=lf
 *.sh text eol=lf
 *.hsc text eol=lf
 *.out text eol=lf
+*.exit text eol=lf
+*.s text eol=lf
