@@ -58,6 +58,9 @@ typedef struct Node {
 Node *init_node(Node *node, const char *value, TokenType type);
 void free_tree(Node *node);
 
+// Returns the identifier name for a node or "<null>" if absent.
+const char *node_name(const Node *node);
+
 Node *parser(Token *tokens);
 void print_tree(Node *node, int indent);
 

@@ -232,7 +232,7 @@ static void gen_expr(Codegen *cg, Node *node) {
             emit(cg, "    mov rax, [rbp - %d]\n", off);
         } else {
             fprintf(stderr, "codegen: unknown symbol %s\n",
-                    node->value ? node->value : "<null>");
+                    node_name(node));
             exit(1);
         }
         break;
@@ -283,7 +283,7 @@ static void gen_expr(Codegen *cg, Node *node) {
                 sym_set_string(cg, off, is_str);
             } else {
                 fprintf(stderr, "codegen: unknown symbol %s\n",
-                        name ? name : "<null>");
+                        node_name(node->left));
                 exit(1);
             }
         }
@@ -393,7 +393,7 @@ static void emit_node(Codegen *cg, Node *node, bool *has_exit) {
         scope_pop(cg);
         break;
     case NK_FnDecl: {
-        const char *name = node->value ? node->value : "<null>";
+        const char *name = node_name(node);
         Node *body = node->children.len > 0 ? node->children.items[0] : NULL;
         int locals = count_locals(body);
         int frame = locals * 8;
@@ -451,7 +451,7 @@ static void emit_node(Codegen *cg, Node *node, bool *has_exit) {
             sym_set_string(cg, off, is_str);
         } else {
             fprintf(stderr, "codegen: unknown symbol %s\n",
-                    name ? name : "<null>");
+                    node_name(node->left));
             exit(1);
         }
         break;
