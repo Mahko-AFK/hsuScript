@@ -6,9 +6,10 @@ cd "$(dirname "$0")/.."
 mkdir -p build
 
 set -x
+gcc -Iinclude -Wall -Wextra -c runtime/rt.c -o build/rt.o
 gcc -Iinclude \
   -Wall -Wextra \
-  main.c lexer.c parser.c tools.c sem.c codegen.c \
+  main.c lexer.c parser.c tools.c sem.c codegen.c build/rt.o \
   -o build/hsc
 set +x
 
