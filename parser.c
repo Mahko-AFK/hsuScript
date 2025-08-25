@@ -115,6 +115,7 @@ Node *init_node(Node *node, const char *value, TokenType type) {
   node->children.items = NULL;
   node->children.len = 0;
   node->children.cap = 0;
+  node->postfix = false;
   node->ty = NULL;
   return node;
 }
@@ -230,6 +231,7 @@ static Node *nud(Token **pp) {
     node->kind = NK_Unary;
     node->op = op;
     node->left = right;
+    node->postfix = false;
     return node;
   }
   default:
@@ -257,6 +259,7 @@ static Node *parse_expr(Token **pp, int minbp) {
       node->kind = NK_Unary;
       node->op = op;
       node->left = left;
+      node->postfix = true;
       left = node;
       continue;
     }

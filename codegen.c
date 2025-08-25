@@ -248,16 +248,18 @@ static void gen_expr(Codegen *cg, Node *node) {
             break;
         case PLUS_PLUS:
         case MINUS_MINUS: {
-            /* treat both prefix and postfix the same for now */
             if (node->left && node->left->kind == NK_Identifier) {
                 int off = sym_lookup(cg, node->left->value, NULL);
                 if (off >= 0) {
-                    emit(cg, "    mov rax, [rbp - %d]\n", off);
+                    if (node->postfix)
+                        emit(cg, "    mov rcx, rax\n");
                     if (node->op == PLUS_PLUS)
                         emit(cg, "    add rax, 1\n");
                     else
                         emit(cg, "    sub rax, 1\n");
                     emit(cg, "    mov [rbp - %d], rax\n", off);
+                    if (node->postfix)
+                        emit(cg, "    mov rax, rcx\n");
                 }
             }
             break;
