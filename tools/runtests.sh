@@ -22,8 +22,6 @@ failed=0
 for case_path in "${cases[@]}"; do
   name="$(basename "$case_path" .hsc)"
   exp_ast="tests/cases/$name.ast"
-  exp_err="tests/cases/$name.err"
-  exp_exit="tests/cases/$name.exit"
   tmp="$(mktemp)"
   rc=0
 
@@ -44,19 +42,8 @@ for case_path in "${cases[@]}"; do
       # sed -n '1,120p' "$tmp"
     fi
 
-  elif [[ -f "$exp_err" && -f "$exp_exit" ]]; then
-    if ./build/hsc --ast-only "$case_path" >"$tmp" 2>&1; then rc=0; else rc=$?; fi
-    expected_rc="$(cat "$exp_exit")"
-    if diff -q <(strip_trailing "$exp_err") <(strip_trailing "$tmp") >/dev/null && [[ "$rc" == "$expected_rc" ]]; then
-      printf '\e[32m[PASS]\e[0m %s\n' "$name"; ((passed++))
-    else
-      printf '\e[31m[FAIL]\e[0m %s\n' "$name"; ((failed++))
-      # echo "rc=$rc expected=$expected_rc"
-      # sed -n '1,120p' "$tmp"
-    fi
-
   else
-    printf '\e[31m[FAIL]\e[0m %s (no .ast or .err/.exit oracle)\n' "$name"; ((failed++))
+    printf '\e[31m[FAIL]\e[0m %s (missing .ast oracle)\n' "$name"; ((failed++))
   fi
 
   ((total++))

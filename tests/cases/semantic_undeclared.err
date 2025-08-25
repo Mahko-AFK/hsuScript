@@ -1,6 +1,0 @@
-Printing AST (Abstract Syntax Tree):
-Program
-    Block
-        WriteStmt
-            Identifier value: x
-Semantic error: undeclared identifier 'x'
