@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 
 #include "codegen.h"
 #include "sem.h"
@@ -32,7 +33,8 @@ struct Codegen {
     int next_label;
     StrVec strs;
     CGScope *scope;         /* current innermost scope */
-    int frame_size;
+    int frame_size;         /* bytes of locals allocated so far */
+    int stack_depth;        /* bytes pushed on stack since prologue */
 };
 
 static void emit(Codegen *cg, const char *fmt, ...) {
@@ -40,6 +42,24 @@ static void emit(Codegen *cg, const char *fmt, ...) {
     va_start(ap, fmt);
     vfprintf(cg->out, fmt, ap);
     va_end(ap);
+}
+
+/* System V AMD64 ABI requires %rsp+8 to be 16-byte aligned at call sites.
+   frame_size tracks our stack frame for locals and stack_depth counts
+   any pushes since the function prologue. */
+static void emit_call(Codegen *cg, const char *target) {
+    int total = cg->frame_size + cg->stack_depth + 8;
+    int fix = 0;
+    if (total % 16 != 0) {
+        assert(total % 16 == 8 && "stack misaligned by non-8 bytes");
+        emit(cg, "    sub rsp, 8\n");
+        fix = 8;
+        total += 8;
+    }
+    assert(total % 16 == 0 && "stack misaligned before call");
+    emit(cg, "    call %s\n", target);
+    if (fix)
+        emit(cg, "    add rsp, 8\n");
 }
 
 static int new_label(Codegen *cg) __attribute__((unused));
@@ -136,6 +156,7 @@ Codegen *codegen_create(FILE *out) {
     cg->strs.len = cg->strs.cap = 0;
     cg->scope = NULL;
     cg->frame_size = 0;
+    cg->stack_depth = 0;
     return cg;
 }
 
@@ -164,7 +185,7 @@ static void emit_exit(Codegen *cg, Node *node, bool *has_exit) {
     } else {
         emit(cg, "    xor edi, edi\n");
     }
-    emit(cg, "    call exit@PLT\n");
+    emit_call(cg, "exit@PLT");
     *has_exit = true;
 }
 
@@ -250,8 +271,10 @@ static void gen_expr(Codegen *cg, Node *node) {
 
         gen_expr(cg, node->left);
         emit(cg, "    push rax\n");
+        cg->stack_depth += 8;
         gen_expr(cg, node->right);
         emit(cg, "    mov r10, rax\n    pop rax\n");
+        cg->stack_depth -= 8;
 
         switch (node->op) {
         case PLUS:
@@ -316,11 +339,14 @@ static void emit_node(Codegen *cg, Node *node, bool *has_exit) {
         emit(cg, "    push rbp\n");
         emit(cg, "    mov rbp, rsp\n");
         emit(cg, "    sub rsp, %d\n", frame);
-        int saved = cg->frame_size;
+        int saved_fs = cg->frame_size;
+        int saved_sd = cg->stack_depth;
         cg->frame_size = 0;
+        cg->stack_depth = 0;
         if (body)
             emit_node(cg, body, has_exit);
-        cg->frame_size = saved;
+        cg->frame_size = saved_fs;
+        cg->stack_depth = saved_sd;
         emit(cg, "    mov rsp, rbp\n");
         emit(cg, "    pop rbp\n");
         emit(cg, "    xor eax, eax\n");
@@ -367,9 +393,9 @@ static void emit_node(Codegen *cg, Node *node, bool *has_exit) {
         gen_expr(cg, node->left);
         emit(cg, "    mov rdi, rax\n");
         if (is_str)
-            emit(cg, "    call hsu_print_cstr@PLT\n");
+            emit_call(cg, "hsu_print_cstr@PLT");
         else
-            emit(cg, "    call hsu_print_int@PLT\n");
+            emit_call(cg, "hsu_print_int@PLT");
         break;
     }
     case NK_ExprStmt:
