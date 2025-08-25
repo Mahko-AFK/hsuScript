@@ -180,7 +180,7 @@ static void gen_expr(Codegen *cg, Node *node) {
         break;
     case NK_String: {
         size_t idx = intern_str(cg, node->value ? node->value : "");
-        emit(cg, "    lea rax, [rel .Lstr%zu]\n", idx);
+        emit(cg, "    lea rax, [rip + .Lstr%zu]\n", idx);
         break;
     }
     case NK_Identifier: {
@@ -453,30 +453,53 @@ static void emit_node(Codegen *cg, Node *node, bool *has_exit) {
 
 void codegen_program(Codegen *cg, Node *program) {
     if (!cg || !cg->out) return;
+
+    /* locate the main function */
+    Node *main_fn = NULL;
+    if (program && program->kind == NK_Program) {
+        for (size_t i = 0; i < program->children.len && !main_fn; i++) {
+            Node *child = program->children.items[i];
+            if (!child) continue;
+            if (child->kind == NK_Block) {
+                for (size_t j = 0; j < child->children.len; j++) {
+                    Node *fn = child->children.items[j];
+                    if (fn && fn->kind == NK_FnDecl && fn->value && strcmp(fn->value, "main") == 0) {
+                        main_fn = fn;
+                        break;
+                    }
+                }
+            } else if (child->kind == NK_FnDecl && child->value && strcmp(child->value, "main") == 0) {
+                main_fn = child;
+            }
+        }
+    }
+
+    if (!main_fn) {
+        fprintf(stderr, "codegen: no main\n");
+        exit(1);
+    }
+
+    emit(cg, ".intel_syntax noprefix\n");
+    emit(cg, ".text\n");
+    emit(cg, ".globl main\n");
+
     bool has_exit = false;
-    emit(cg, "section .text\n");
-    emit(cg, "global _start\n");
-    emit(cg, "_start:\n");
-    emit(cg, "    and rsp, -16\n");
-    emit(cg, "    call main\n");
-    emit(cg, "    mov rax, 60\n");
-    emit(cg, "    xor rdi, rdi\n");
-    emit(cg, "    syscall\n");
-    emit_node(cg, program, &has_exit);
+    emit_node(cg, main_fn, &has_exit);
+
     if (cg->strs.len > 0) {
-        emit(cg, "section .data\n");
+        emit(cg, ".rodata\n");
         for (size_t i = 0; i < cg->strs.len; i++) {
             const char *s = cg->strs.items[i];
-            emit(cg, ".Lstr%zu: db \"", i);
+            emit(cg, ".Lstr%zu: .asciz \"", i);
             for (const char *p = s; *p; p++) {
                 if (*p == '"' || *p == '\\')
                     emit(cg, "\\%c", *p);
                 else if (*p == '\n')
-                    emit(cg, "\",10,\"");
+                    emit(cg, "\\n");
                 else
                     emit(cg, "%c", *p);
             }
-            emit(cg, "\",0\n");
+            emit(cg, "\"\n");
         }
     }
 }
