@@ -295,6 +295,28 @@ static void gen_expr(Codegen *cg, Node *node) {
             break;
         }
 
+        bool left_is_str = node->left &&
+                           ((node->left->ty && node->left->ty->kind == TY_STRING) ||
+                            node->left->kind == NK_String);
+        if (!left_is_str && node->left && node->left->kind == NK_Identifier)
+            sym_lookup(cg, node->left->value, &left_is_str);
+        bool right_is_str = node->right &&
+                             ((node->right->ty && node->right->ty->kind == TY_STRING) ||
+                              node->right->kind == NK_String);
+        if (!right_is_str && node->right && node->right->kind == NK_Identifier)
+            sym_lookup(cg, node->right->value, &right_is_str);
+        if (node->op == PLUS && (left_is_str || right_is_str)) {
+            gen_expr(cg, node->left);
+            emit(cg, "    push rax\n");
+            cg->stack_depth += 8;
+            gen_expr(cg, node->right);
+            emit(cg, "    mov rsi, rax\n    pop rdi\n");
+            cg->stack_depth -= 8;
+            emit_call(cg, "hsu_concat@PLT");
+            node->ty = type_string();
+            break;
+        }
+
         gen_expr(cg, node->left);
         emit(cg, "    push rax\n");
         cg->stack_depth += 8;
@@ -386,15 +408,16 @@ static void emit_node(Codegen *cg, Node *node, bool *has_exit) {
         scope_pop(cg);
         break;
     case NK_LetStmt: {
-        bool is_str = node->right &&
-                      (node->right->kind == NK_String ||
-                       (node->right->ty && node->right->ty->kind == TY_STRING));
-        sym_add(cg, node->value, is_str);
+        sym_add(cg, node->value, false);
         if (node->right) {
             gen_expr(cg, node->right);
             int off = sym_lookup(cg, node->value, NULL);
             if (off >= 0)
                 emit(cg, "    mov [rbp - %d], rax\n", off);
+            bool is_str = node->right &&
+                          (node->right->kind == NK_String ||
+                           (node->right->ty && node->right->ty->kind == TY_STRING));
+            sym_set_is_string(cg, node->value, is_str);
         }
         break;
     }
