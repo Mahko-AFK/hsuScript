@@ -153,6 +153,17 @@ static void sym_set_is_string(Codegen *cg, const char *name, bool is_string) {
     }
 }
 
+static void sym_set_string(Codegen *cg, int offset, bool is_string) {
+    for (CGScope *s = cg->scope; s; s = s->parent) {
+        for (size_t i = 0; i < s->len; i++) {
+            if (s->items[i].offset == offset) {
+                s->items[i].is_string = is_string;
+                return;
+            }
+        }
+    }
+}
+
 /* ------------------------------------------------------------------------- */
 /* Expression and statement emission                                        */
 
@@ -259,13 +270,15 @@ static void gen_expr(Codegen *cg, Node *node) {
         gen_expr(cg, node->right);
         if (node->left && node->left->kind == NK_Identifier) {
             const char *name = node->left->value;
-            bool is_str = node->right &&
-                          (node->right->kind == NK_String ||
-                           (node->right->ty && node->right->ty->kind == TY_STRING));
-            sym_set_is_string(cg, name, is_str);
             int off = sym_lookup(cg, name, NULL);
             if (off >= 0) {
                 emit(cg, "    mov [rbp - %d], rax\n", off);
+                bool is_str = node->right &&
+                              (node->right->kind == NK_String ||
+                               (node->right->kind == NK_Binary &&
+                                node->right->op == PLUS &&
+                                node->right->ty && node->right->ty->kind == TY_STRING));
+                sym_set_string(cg, off, is_str);
             } else {
                 fprintf(stderr, "codegen: unknown symbol %s\n",
                         name ? name : "<null>");
@@ -429,8 +442,10 @@ static void emit_node(Codegen *cg, Node *node, bool *has_exit) {
             emit(cg, "    mov [rbp - %d], rax\n", off);
             bool is_str = node->right &&
                           (node->right->kind == NK_String ||
-                           (node->right->ty && node->right->ty->kind == TY_STRING));
-            sym_set_is_string(cg, name, is_str);
+                           (node->right->kind == NK_Binary &&
+                            node->right->op == PLUS &&
+                            node->right->ty && node->right->ty->kind == TY_STRING));
+            sym_set_string(cg, off, is_str);
         } else {
             fprintf(stderr, "codegen: unknown symbol %s\n",
                     name ? name : "<null>");
@@ -441,15 +456,12 @@ static void emit_node(Codegen *cg, Node *node, bool *has_exit) {
     case NK_WriteStmt: {
         bool is_str = false;
         if (node->left) {
-            if (node->left->ty && node->left->ty->kind == TY_STRING)
+            if (node->left->kind == NK_String)
                 is_str = true;
-            else if (node->left->kind == NK_String)
+            else if (node->left->kind == NK_Identifier)
+                sym_lookup(cg, node->left->value, &is_str);
+            else if (node->left->ty && node->left->ty->kind == TY_STRING)
                 is_str = true;
-            else if (node->left->kind == NK_Identifier) {
-                bool tmp = false;
-                sym_lookup(cg, node->left->value, &tmp);
-                is_str = tmp;
-            }
         }
         gen_expr(cg, node->left);
         emit(cg, "    mov rdi, rax\n");
