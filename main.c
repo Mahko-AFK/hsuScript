@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include <string.h>
+#include <sys/wait.h>
 
 #include "lexer.h"
 #include "parser.h"
@@ -53,35 +54,57 @@ int main(int argc, char *argv[]) {
 
   Token *tokens = lexer(file);
 
-  if (!ast_only && emit_path == NULL) {
-    print_tokens(tokens);
-  }
-
-  Node *root = parser(tokens);
-
-  if (emit_path == NULL) {
+  if (ast_only) {
+    Node *root = parser(tokens);
     printf("Printing AST (Abstract Syntax Tree):\n");
     print_tree(root, 0);
     fflush(stdout);
-  }
-
-  sem_program(root);
-
-  if (emit_path != NULL) {
-    FILE *outf = fopen(emit_path, "w");
-    if (!outf) {
-      fprintf(stderr, "ERROR: Could not open %s for writing\n", emit_path);
-      free_tree(root);
-      return 1;
-    }
-    Codegen *cg = codegen_create(outf);
-    codegen_program(cg, root);
-    codegen_free(cg);
-    fclose(outf);
     free_tree(root);
     return 0;
   }
 
-  free_tree(root);
+  Node *root = parser(tokens);
+  sem_program(root);
 
+  int run_bin = 0;
+  if (emit_path == NULL) {
+    emit_path = "build/out.s";
+    run_bin = 1;
+  }
+
+  if (system("mkdir -p build") != 0) {
+    fprintf(stderr, "ERROR: could not create build directory\n");
+    free_tree(root);
+    return 1;
+  }
+
+  FILE *outf = fopen(emit_path, "w");
+  if (!outf) {
+    fprintf(stderr, "ERROR: Could not open %s for writing\n", emit_path);
+    free_tree(root);
+    return 1;
+  }
+
+  Codegen *cg = codegen_create(outf);
+  codegen_program(cg, root);
+  codegen_free(cg);
+  fclose(outf);
+
+  if (run_bin) {
+    if (system("gcc -Wa,--noexecstack -c build/out.s -o build/out.o") != 0 ||
+        system("gcc build/out.o build/rt.o -o build/out") != 0) {
+      fprintf(stderr, "ERROR: failed to build binary\n");
+      free_tree(root);
+      return 1;
+    }
+    int rc = system("./build/out");
+    if (rc != -1) {
+      rc = WEXITSTATUS(rc);
+    }
+    free_tree(root);
+    return rc;
+  }
+
+  free_tree(root);
+  return 0;
 }
