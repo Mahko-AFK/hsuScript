@@ -124,7 +124,7 @@ static int sym_lookup(Codegen *cg, const char *name, bool *is_string) {
 /* ------------------------------------------------------------------------- */
 /* Expression and statement emission                                        */
 
-static void emit_expr(Codegen *cg, Node *node);
+static void gen_expr(Codegen *cg, Node *node);
 
 Codegen *codegen_create(FILE *out) {
     Codegen *cg = calloc(1, sizeof(Codegen));
@@ -166,15 +166,19 @@ static void emit_exit(Codegen *cg, Node *node, bool *has_exit) {
     *has_exit = true;
 }
 
-static void emit_expr(Codegen *cg, Node *node) {
+static void gen_expr(Codegen *cg, Node *node) {
     if (!node) return;
+
     switch (node->kind) {
     case NK_Int:
         emit(cg, "    mov rax, %s\n", node->value ? node->value : "0");
         break;
+    case NK_Bool:
+        emit(cg, "    mov rax, %s\n", (node->value && strcmp(node->value, "true") == 0) ? "1" : "0");
+        break;
     case NK_String: {
         size_t idx = intern_str(cg, node->value ? node->value : "");
-        emit(cg, "    lea rax, [rel str%zu]\n", idx);
+        emit(cg, "    lea rax, [rel .Lstr%zu]\n", idx);
         break;
     }
     case NK_Identifier: {
@@ -183,35 +187,108 @@ static void emit_expr(Codegen *cg, Node *node) {
             emit(cg, "    mov rax, [rbp - %d]\n", off);
         break;
     }
-    case NK_Assign: {
-        emit_expr(cg, node->right);
-        int off = sym_lookup(cg, node->left->value, NULL);
-        if (off >= 0)
-            emit(cg, "    mov [rbp - %d], rax\n", off);
-        break;
-    }
-    case NK_Binary: {
-        if (node->op == PLUS || node->op == DASH || node->op == STAR) {
-            emit_expr(cg, node->left);
-            emit(cg, "    push rax\n");
-            emit_expr(cg, node->right);
-            emit(cg, "    pop rbx\n");
-            switch (node->op) {
-            case PLUS:
-                emit(cg, "    add rax, rbx\n");
-                break;
-            case DASH:
-                emit(cg, "    sub rbx, rax\n    mov rax, rbx\n");
-                break;
-            case STAR:
-                emit(cg, "    imul rax, rbx\n");
-                break;
-            default:
-                break;
+    case NK_Unary:
+        gen_expr(cg, node->left);
+        switch (node->op) {
+        case DASH:
+            emit(cg, "    neg rax\n");
+            break;
+        case NOT:
+            emit(cg, "    test rax, rax\n    sete al\n    movzx rax, al\n");
+            break;
+        case PLUS_PLUS:
+        case MINUS_MINUS: {
+            /* treat both prefix and postfix the same for now */
+            if (node->left && node->left->kind == NK_Identifier) {
+                int off = sym_lookup(cg, node->left->value, NULL);
+                if (off >= 0) {
+                    emit(cg, "    mov rax, [rbp - %d]\n", off);
+                    if (node->op == PLUS_PLUS)
+                        emit(cg, "    add rax, 1\n");
+                    else
+                        emit(cg, "    sub rax, 1\n");
+                    emit(cg, "    mov [rbp - %d], rax\n", off);
+                }
             }
+            break;
+        }
+        default:
+            break;
         }
         break;
-    }
+    case NK_Assign:
+        gen_expr(cg, node->right);
+        if (node->left && node->left->kind == NK_Identifier) {
+            int off = sym_lookup(cg, node->left->value, NULL);
+            if (off >= 0)
+                emit(cg, "    mov [rbp - %d], rax\n", off);
+        }
+        break;
+    case NK_Binary:
+        if (node->op == AND || node->op == OR) {
+            int l_short = new_label(cg);
+            int l_end = new_label(cg);
+            if (node->op == AND) {
+                gen_expr(cg, node->left);
+                emit(cg, "    cmp rax, 0\n    je .L%d\n", l_short);
+                gen_expr(cg, node->right);
+                emit(cg, "    cmp rax, 0\n    setne al\n    movzx rax, al\n    jmp .L%d\n", l_end);
+                emit(cg, ".L%d:\n    xor eax, eax\n", l_short);
+                emit(cg, ".L%d:\n", l_end);
+            } else { /* OR */
+                gen_expr(cg, node->left);
+                emit(cg, "    cmp rax, 0\n    jne .L%d\n", l_short);
+                gen_expr(cg, node->right);
+                emit(cg, "    cmp rax, 0\n    setne al\n    movzx rax, al\n    jmp .L%d\n", l_end);
+                emit(cg, ".L%d:\n    mov eax, 1\n", l_short);
+                emit(cg, ".L%d:\n", l_end);
+            }
+            break;
+        }
+
+        gen_expr(cg, node->left);
+        emit(cg, "    push rax\n");
+        gen_expr(cg, node->right);
+        emit(cg, "    mov rbx, rax\n    pop rax\n");
+
+        switch (node->op) {
+        case PLUS:
+            emit(cg, "    add rax, rbx\n");
+            break;
+        case DASH:
+            emit(cg, "    sub rax, rbx\n");
+            break;
+        case STAR:
+            emit(cg, "    imul rax, rbx\n");
+            break;
+        case SLASH:
+            emit(cg, "    cqo\n    idiv rbx\n");
+            break;
+        case PERCENT:
+            emit(cg, "    cqo\n    idiv rbx\n    mov rax, rdx\n");
+            break;
+        case EQUALS:
+            emit(cg, "    cmp rax, rbx\n    sete al\n    movzx rax, al\n");
+            break;
+        case NOT_EQUALS:
+            emit(cg, "    cmp rax, rbx\n    setne al\n    movzx rax, al\n");
+            break;
+        case LESS:
+            emit(cg, "    cmp rax, rbx\n    setl al\n    movzx rax, al\n");
+            break;
+        case LESS_EQUALS:
+            emit(cg, "    cmp rax, rbx\n    setle al\n    movzx rax, al\n");
+            break;
+        case GREATER:
+            emit(cg, "    cmp rax, rbx\n    setg al\n    movzx rax, al\n");
+            break;
+        case GREATER_EQUALS:
+            emit(cg, "    cmp rax, rbx\n    setge al\n    movzx rax, al\n");
+            break;
+        default:
+            break;
+        }
+        break;
     default:
         break;
     }
@@ -258,7 +335,7 @@ static void emit_node(Codegen *cg, Node *node, bool *has_exit) {
         bool is_str = node->right && node->right->kind == NK_String;
         sym_add(cg, node->value, is_str);
         if (node->right) {
-            emit_expr(cg, node->right);
+            gen_expr(cg, node->right);
             int off = sym_lookup(cg, node->value, NULL);
             if (off >= 0)
                 emit(cg, "    mov [rbp - %d], rax\n", off);
@@ -266,14 +343,14 @@ static void emit_node(Codegen *cg, Node *node, bool *has_exit) {
         break;
     }
     case NK_AssignStmt: {
-        emit_expr(cg, node->right);
+        gen_expr(cg, node->right);
         int off = sym_lookup(cg, node->value, NULL);
         if (off >= 0)
             emit(cg, "    mov [rbp - %d], rax\n", off);
         break;
     }
     case NK_ExprStmt:
-        emit_expr(cg, node->left);
+        gen_expr(cg, node->left);
         break;
     case NK_ExitStmt:
         emit_exit(cg, node, has_exit);
@@ -304,7 +381,7 @@ void codegen_program(Codegen *cg, Node *program) {
         emit(cg, "section .data\n");
         for (size_t i = 0; i < cg->strs.len; i++) {
             const char *s = cg->strs.items[i];
-            emit(cg, "str%zu: db \"", i);
+            emit(cg, ".Lstr%zu: db \"", i);
             for (const char *p = s; *p; p++) {
                 if (*p == '"' || *p == '\\')
                     emit(cg, "\\%c", *p);
