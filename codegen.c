@@ -600,6 +600,7 @@ void codegen_program(Codegen *cg, Node *program) {
 
     if (cg->strs.len > 0) {
         emit(cg, ".section .rodata\n");
+        emit(cg, ".p2align 4\n");
         for (size_t i = 0; i < cg->strs.len; i++) {
             const char *s = cg->strs.items[i];
             emit(cg, ".Lstr%zu: .asciz \"", i);
@@ -608,6 +609,10 @@ void codegen_program(Codegen *cg, Node *program) {
                     emit(cg, "\\%c", *p);
                 else if (*p == '\n')
                     emit(cg, "\\n");
+                else if (*p == '\t')
+                    emit(cg, "\\t");
+                else if (*p == '\r')
+                    emit(cg, "\\r");
                 else
                     emit(cg, "%c", *p);
             }
