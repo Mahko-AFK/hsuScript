@@ -40,4 +40,12 @@ Run the parser fixtures with:
 ./tools/runtests.sh
 ```
 
-The script builds the compiler and checks each `.hsc` in `tests/cases` against its expected `.ast` or `.err` output.
+Run the full test suite, including executing compiled programs and
+verifying their stdout, with:
+
+```bash
+./tools/run_all_tests.sh
+```
+
+These scripts build the compiler, check each `.hsc` in `tests/cases`
+against its expected output, and report results to stdout.
