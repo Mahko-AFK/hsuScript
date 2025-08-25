@@ -25,13 +25,22 @@ flowchart LR
 
 ```text
 .
+├── docs/          # module documentation
 ├── lexer.c        # tokenizes source code
 ├── parser.c       # builds the AST
+├── sem.c          # semantic analysis
 ├── codegen.c      # emits code
 ├── runtime/       # runtime support library
 ├── tests/         # parser and execution tests
 └── tools/         # build and test scripts
 ```
+
+Module guides:
+- [Lexer](docs/lexer.md)
+- [Parser](docs/parser.md)
+- [Semantics](docs/semantics.md)
+- [Code generation](docs/codegen.md)
+- [Runtime](docs/runtime.md)
 
 ## Quick Start
 
