@@ -3,7 +3,7 @@
 set -euo pipefail
 
 # always run from repo root (directory of this script)
-cd "$(dirname "$0")"
+cd "$(dirname "$0")/.."
 
 # choose compiler (override with: CC=clang ./build_asan.sh)
 CC="${CC:-gcc}"

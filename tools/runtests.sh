@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # ultra-minimal runner
 set -u
-cd "$(dirname "$0")"
+cd "$(dirname "$0")/.."
 
 echo "Building..."
-./build.sh || { echo "Build failed"; exit 1; }
+./tools/build.sh || { echo "Build failed"; exit 1; }
 echo "Build OK."
 
 # Discover tests robustly
@@ -37,9 +37,9 @@ for case_path in "${cases[@]}"; do
     fi
 
     if diff -q <(strip_trailing "$exp_ast") <(strip_trailing "$tmp") >/dev/null && [[ $rc -eq 0 ]]; then
-      echo "[PASS] $name"; ((passed++))
+      printf '\e[32m[PASS]\e[0m %s\n' "$name"; ((passed++))
     else
-      echo "[FAIL] $name"; ((failed++))
+      printf '\e[31m[FAIL]\e[0m %s\n' "$name"; ((failed++))
       # uncomment to inspect:
       # sed -n '1,120p' "$tmp"
     fi
@@ -48,15 +48,15 @@ for case_path in "${cases[@]}"; do
     if ./build/hsc --ast-only "$case_path" >"$tmp" 2>&1; then rc=0; else rc=$?; fi
     expected_rc="$(cat "$exp_exit")"
     if diff -q <(strip_trailing "$exp_err") <(strip_trailing "$tmp") >/dev/null && [[ "$rc" == "$expected_rc" ]]; then
-      echo "[PASS] $name"; ((passed++))
+      printf '\e[32m[PASS]\e[0m %s\n' "$name"; ((passed++))
     else
-      echo "[FAIL] $name"; ((failed++))
+      printf '\e[31m[FAIL]\e[0m %s\n' "$name"; ((failed++))
       # echo "rc=$rc expected=$expected_rc"
       # sed -n '1,120p' "$tmp"
     fi
 
   else
-    echo "[FAIL] $name (no .ast or .err/.exit oracle)"; ((failed++))
+    printf '\e[31m[FAIL]\e[0m %s (no .ast or .err/.exit oracle)\n' "$name"; ((failed++))
   fi
 
   ((total++))
