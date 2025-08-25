@@ -1,4 +1,7 @@
-.PHONY: test-exec
+.PHONY: test
 
-test-exec:
+test:
+	echo "===== Running language tests ====="
+	./tools/runexec.sh
+	echo "===== Running execution tests ====="
 	./tools/runexec.sh
