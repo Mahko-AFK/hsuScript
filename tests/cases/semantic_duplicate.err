@@ -1,8 +1,0 @@
-Printing AST (Abstract Syntax Tree):
-Program
-    Block
-        LetStmt value: x
-            Int value: 1
-        LetStmt value: x
-            Int value: 2
-Semantic error: duplicate identifier 'x'
