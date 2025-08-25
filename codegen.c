@@ -61,6 +61,17 @@ static size_t intern_str(Codegen *cg, const char *s) {
     return cg->strs.len++;
 }
 
+static int count_locals(Node *node) {
+    if (!node) return 0;
+    if (node->kind == NK_FnDecl) return 0;
+    int n = (node->kind == NK_LetStmt) ? 1 : 0;
+    n += count_locals(node->left);
+    n += count_locals(node->right);
+    for (size_t i = 0; i < node->children.len; i++)
+        n += count_locals(node->children.items[i]);
+    return n;
+}
+
 /* ------------------------------------------------------------------------- */
 /* Scope and symbol helpers                                                 */
 
@@ -215,6 +226,28 @@ static void emit_node(Codegen *cg, Node *node, bool *has_exit) {
             emit_node(cg, node->children.items[i], has_exit);
         scope_pop(cg);
         break;
+    case NK_FnDecl: {
+        const char *name = node->value ? node->value : "fn";
+        Node *body = node->children.len > 0 ? node->children.items[0] : NULL;
+        int locals = count_locals(body);
+        int frame = locals * 8;
+        if ((frame + 8) % 16 != 0)
+            frame += 8;
+        emit(cg, "%s:\n", name);
+        emit(cg, "    push rbp\n");
+        emit(cg, "    mov rbp, rsp\n");
+        emit(cg, "    sub rsp, %d\n", frame);
+        int saved = cg->frame_size;
+        cg->frame_size = 0;
+        if (body)
+            emit_node(cg, body, has_exit);
+        cg->frame_size = saved;
+        emit(cg, "    mov rsp, rbp\n");
+        emit(cg, "    pop rbp\n");
+        emit(cg, "    xor eax, eax\n");
+        emit(cg, "    ret\n");
+        break;
+    }
     case NK_Block:
         scope_push(cg);
         for (size_t i = 0; i < node->children.len; i++)
@@ -261,12 +294,12 @@ void codegen_program(Codegen *cg, Node *program) {
     emit(cg, "section .text\n");
     emit(cg, "global _start\n");
     emit(cg, "_start:\n");
+    emit(cg, "    and rsp, -16\n");
+    emit(cg, "    call main\n");
+    emit(cg, "    mov rax, 60\n");
+    emit(cg, "    xor rdi, rdi\n");
+    emit(cg, "    syscall\n");
     emit_node(cg, program, &has_exit);
-    if (!has_exit) {
-        emit(cg, "    mov rax, 60\n");
-        emit(cg, "    mov rdi, 0\n");
-        emit(cg, "    syscall\n");
-    }
     if (cg->strs.len > 0) {
         emit(cg, "section .data\n");
         for (size_t i = 0; i < cg->strs.len; i++) {
