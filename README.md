@@ -20,6 +20,20 @@ flowchart LR
 - Simple code generation and runtime support
 - Scripts with variables, control flow, strings, and arithmetic
 - Comprehensive test suite
+ 
+## Language overview
+
+hsuScript uses a small C-like syntax. Programs start at `fn main()` and support:
+
+- Variables declared with `let`
+- Arithmetic and boolean expressions
+- String literals
+- `if`/`elif`/`else` conditionals
+- `for` and `while` loops
+- User-defined functions
+- `write(expr)` for output and `exit(code)` to terminate
+
+See `tests/cases` for runnable examples and the module docs in `docs/` for more detail.
 
 ## Project Structure
 
@@ -48,10 +62,15 @@ Module guides:
    ```bash
    ./tools/build.sh
    ```
-2. Compile and run a script:
+2. Run a script directly:
    ```bash
    ./build/hsc path/to/file.hsc
    ```
+3. Compile a script to a native binary:
+   ```bash
+   ./build/hsc path/to/file.hsc --compile program
+   ```
+   The generated binary defaults to `a.out` if no name is given. Use `--emit-asm out.s` to also save the assembly.
 
 ## Command-line options
 
