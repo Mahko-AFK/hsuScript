@@ -14,10 +14,10 @@ The executable is placed at `build/hsc`. AddressSanitizer build is available via
 
 ## Running
 
-Run the compiler on a `.hs` source file to print tokens and the AST:
+Run the compiler on a `.hsc` source file to print tokens and the AST:
 
 ```bash
-./build/hsc path/to/file.hs
+./build/hsc path/to/file.hsc
 ```
 
 ## Language Syntax
