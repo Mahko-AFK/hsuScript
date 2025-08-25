@@ -53,7 +53,7 @@ int main(int argc, char *argv[]) {
 
   sem_program(root);
 
-  generate_code(root, "out.asm");
+  generate_code(root, "out.s");
   free_tree(root);
 
 }
