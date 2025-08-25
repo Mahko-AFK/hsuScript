@@ -251,41 +251,41 @@ static void gen_expr(Codegen *cg, Node *node) {
         gen_expr(cg, node->left);
         emit(cg, "    push rax\n");
         gen_expr(cg, node->right);
-        emit(cg, "    mov rbx, rax\n    pop rax\n");
+        emit(cg, "    mov r10, rax\n    pop rax\n");
 
         switch (node->op) {
         case PLUS:
-            emit(cg, "    add rax, rbx\n");
+            emit(cg, "    add rax, r10\n");
             break;
         case DASH:
-            emit(cg, "    sub rax, rbx\n");
+            emit(cg, "    sub rax, r10\n");
             break;
         case STAR:
-            emit(cg, "    imul rax, rbx\n");
+            emit(cg, "    imul rax, r10\n");
             break;
         case SLASH:
-            emit(cg, "    cqo\n    idiv rbx\n");
+            emit(cg, "    cqo\n    idiv r10\n");
             break;
         case PERCENT:
-            emit(cg, "    cqo\n    idiv rbx\n    mov rax, rdx\n");
+            emit(cg, "    cqo\n    idiv r10\n    mov rax, rdx\n");
             break;
         case EQUALS:
-            emit(cg, "    cmp rax, rbx\n    sete al\n    movzx rax, al\n");
+            emit(cg, "    cmp rax, r10\n    sete al\n    movzx rax, al\n");
             break;
         case NOT_EQUALS:
-            emit(cg, "    cmp rax, rbx\n    setne al\n    movzx rax, al\n");
+            emit(cg, "    cmp rax, r10\n    setne al\n    movzx rax, al\n");
             break;
         case LESS:
-            emit(cg, "    cmp rax, rbx\n    setl al\n    movzx rax, al\n");
+            emit(cg, "    cmp rax, r10\n    setl al\n    movzx rax, al\n");
             break;
         case LESS_EQUALS:
-            emit(cg, "    cmp rax, rbx\n    setle al\n    movzx rax, al\n");
+            emit(cg, "    cmp rax, r10\n    setle al\n    movzx rax, al\n");
             break;
         case GREATER:
-            emit(cg, "    cmp rax, rbx\n    setg al\n    movzx rax, al\n");
+            emit(cg, "    cmp rax, r10\n    setg al\n    movzx rax, al\n");
             break;
         case GREATER_EQUALS:
-            emit(cg, "    cmp rax, rbx\n    setge al\n    movzx rax, al\n");
+            emit(cg, "    cmp rax, r10\n    setge al\n    movzx rax, al\n");
             break;
         default:
             break;
@@ -487,7 +487,7 @@ void codegen_program(Codegen *cg, Node *program) {
     emit_node(cg, main_fn, &has_exit);
 
     if (cg->strs.len > 0) {
-        emit(cg, ".rodata\n");
+        emit(cg, ".section .rodata\n");
         for (size_t i = 0; i < cg->strs.len; i++) {
             const char *s = cg->strs.items[i];
             emit(cg, ".Lstr%zu: .asciz \"", i);
