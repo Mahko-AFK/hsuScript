@@ -1,0 +1,11 @@
+Printing AST (Abstract Syntax Tree):
+Program
+    Block
+        FnDecl value: helper
+            Block
+                WriteStmt
+                    String value: helper
+        FnDecl value: main
+            Block
+                WriteStmt
+                    String value: main

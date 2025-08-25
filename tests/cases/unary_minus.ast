@@ -1,0 +1,8 @@
+Printing AST (Abstract Syntax Tree):
+Program
+    Block
+        FnDecl value: main
+            Block
+                WriteStmt
+                    Unary op: -
+                        Int value: 5
