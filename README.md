@@ -53,6 +53,12 @@ Module guides:
    ./build/hsc path/to/file.hsc
    ```
 
+## Command-line options
+
+- `--ast-only`: parse and print the AST without generating code
+- `--emit-asm [path]`: write assembly to `path` (defaults to `build/out.s`)
+- `--compile [output]`: produce a binary named `output` (defaults to `a.out`) without running it
+
 ## Testing
 
 Run parser fixtures:
