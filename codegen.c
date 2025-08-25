@@ -142,6 +142,17 @@ static int sym_lookup(Codegen *cg, const char *name, bool *is_string) {
     return -1;
 }
 
+static void sym_set_is_string(Codegen *cg, const char *name, bool is_string) {
+    for (CGScope *s = cg->scope; s; s = s->parent) {
+        for (size_t i = 0; i < s->len; i++) {
+            if (strcmp(s->items[i].name, name) == 0) {
+                s->items[i].is_string = is_string;
+                return;
+            }
+        }
+    }
+}
+
 /* ------------------------------------------------------------------------- */
 /* Expression and statement emission                                        */
 
@@ -247,12 +258,17 @@ static void gen_expr(Codegen *cg, Node *node) {
     case NK_Assign:
         gen_expr(cg, node->right);
         if (node->left && node->left->kind == NK_Identifier) {
-            int off = sym_lookup(cg, node->left->value, NULL);
+            const char *name = node->left->value;
+            bool is_str = node->right &&
+                          (node->right->kind == NK_String ||
+                           (node->right->ty && node->right->ty->kind == TY_STRING));
+            sym_set_is_string(cg, name, is_str);
+            int off = sym_lookup(cg, name, NULL);
             if (off >= 0) {
                 emit(cg, "    mov [rbp - %d], rax\n", off);
             } else {
                 fprintf(stderr, "codegen: unknown symbol %s\n",
-                        node->left->value ? node->left->value : "<null>");
+                        name ? name : "<null>");
                 exit(1);
             }
         }
@@ -370,7 +386,9 @@ static void emit_node(Codegen *cg, Node *node, bool *has_exit) {
         scope_pop(cg);
         break;
     case NK_LetStmt: {
-        bool is_str = node->right && node->right->kind == NK_String;
+        bool is_str = node->right &&
+                      (node->right->kind == NK_String ||
+                       (node->right->ty && node->right->ty->kind == TY_STRING));
         sym_add(cg, node->value, is_str);
         if (node->right) {
             gen_expr(cg, node->right);
@@ -382,12 +400,17 @@ static void emit_node(Codegen *cg, Node *node, bool *has_exit) {
     }
     case NK_AssignStmt: {
         gen_expr(cg, node->right);
-        int off = sym_lookup(cg, node->value, NULL);
+        const char *name = (node->left && node->left->value) ? node->left->value : NULL;
+        int off = sym_lookup(cg, name, NULL);
         if (off >= 0) {
             emit(cg, "    mov [rbp - %d], rax\n", off);
+            bool is_str = node->right &&
+                          (node->right->kind == NK_String ||
+                           (node->right->ty && node->right->ty->kind == TY_STRING));
+            sym_set_is_string(cg, name, is_str);
         } else {
             fprintf(stderr, "codegen: unknown symbol %s\n",
-                    node->value ? node->value : "<null>");
+                    name ? name : "<null>");
             exit(1);
         }
         break;

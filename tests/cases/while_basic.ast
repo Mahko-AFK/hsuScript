@@ -12,7 +12,7 @@ Program
                     Block
                         WriteStmt
                             Identifier value: i
-                        AssignStmt op: = value: i
+                        AssignStmt op: =
                             Identifier value: i
                             Binary op: +
                                 Identifier value: i

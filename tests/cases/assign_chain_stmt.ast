@@ -5,7 +5,7 @@ Program
             Int value: 0
         LetStmt value: b
             Int value: 0
-        AssignStmt op: = value: a
+        AssignStmt op: =
             Identifier value: a
             Assign op: =
                 Identifier value: b
