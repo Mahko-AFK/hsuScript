@@ -2,6 +2,7 @@
 #define PARSER_H
 
 
+#include <stdbool.h>
 #include "lexer.h"
 
 // Kinds of AST nodes that may appear in the syntax tree.
@@ -49,6 +50,7 @@ typedef struct Node {
   struct Node *right;
   struct Node *left;
   Vec children;      // Used when this node represents a block
+  bool postfix;      // true if ++/-- appears in postfix form
   Type *ty;          // Inferred semantic type
 } Node;
 
