@@ -584,6 +584,14 @@ void codegen_program(Codegen *cg, Node *program) {
     }
 
     emit(cg, ".intel_syntax noprefix\n");
+    static bool externs_emitted = false;
+    if (!externs_emitted) {
+        emit(cg, ".extern hsu_print_int\n");
+        emit(cg, ".extern hsu_print_cstr\n");
+        emit(cg, ".extern hsu_concat\n");
+        emit(cg, ".extern exit\n");
+        externs_emitted = true;
+    }
     emit(cg, ".text\n");
     emit(cg, ".globl main\n");
 
