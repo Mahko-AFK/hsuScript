@@ -10,15 +10,8 @@ if ! ./tools/build.sh > /dev/null; then
 fi
 
 BUILD_DIR=build
-RT_SRC=runtime/rt.c
-RT_OBJ="$BUILD_DIR/rt.o"
+RT_OBJ="$BUILD_DIR/rt_tmp.o"
 mkdir -p "$BUILD_DIR"
-
-echo "Compiling runtime..."
-if ! gcc -Iinclude -Wall -Wextra -c "$RT_SRC" -o "$RT_OBJ"; then
-  echo "Failed to compile runtime" >&2
-  exit 1
-fi
 
 # Discover all .hsc test cases under tests/exec
 mapfile -d '' -t cases < <(find tests/exec -type f -name '*.hsc' -print0 | sort -z)
