@@ -11,13 +11,15 @@ RT_OBJ="$BUILD_DIR/rt.o"
 
 mkdir -p "$BUILD_DIR"
 
-# Compile runtime exactly once per script invocation
+# Compile runtime if needed
 if [[ ! -f "$RT_SRC" ]]; then
   echo "missing runtime source: $RT_SRC" >&2
   exit 1
 fi
-echo "  CC  $RT_SRC"
-gcc -Iinclude -Wall -Wextra -c "$RT_SRC" -o "$RT_OBJ"
+if [[ ! -f "$RT_OBJ" || "$RT_SRC" -nt "$RT_OBJ" ]]; then
+  echo "  CC  $RT_SRC"
+  gcc -Iinclude -Wall -Wextra -c "$RT_SRC" -o "$RT_OBJ"
+fi
 
 GREEN='\e[32m'
 RED='\e[31m'

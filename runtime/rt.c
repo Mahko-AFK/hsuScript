@@ -17,12 +17,12 @@ void hsu_print_int(long n) {
 }
 
 char *hsu_concat(const char *a, const char *b) {
-    size_t la = a ? strlen(a) : 0;
-    size_t lb = b ? strlen(b) : 0;
-    char *res = malloc(la + lb + 1);
+    const char *sa = a ? a : "";
+    const char *sb = b ? b : "";
+    size_t len = strlen(sa) + strlen(sb) + 1;
+    char *res = malloc(len);
     if (!res) return NULL;
-    if (a) memcpy(res, a, la);
-    if (b) memcpy(res + la, b, lb);
-    res[la + lb] = '\0';
+    strcpy(res, sa);
+    strcat(res, sb);
     return res;
 }
