@@ -1,8 +1,13 @@
 #ifndef CODEGEN_H
 #define CODEGEN_H
 
+#include <stdio.h>
 #include "parser.h"
 
-void generate_code(Node *root, const char *filename);
+typedef struct Codegen Codegen;
+
+Codegen *codegen_create(FILE *out);
+void codegen_free(Codegen *cg);
+void codegen_program(Codegen *cg, Node *program);
 
 #endif
