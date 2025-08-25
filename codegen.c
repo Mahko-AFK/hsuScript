@@ -206,8 +206,13 @@ static void gen_expr(Codegen *cg, Node *node) {
     }
     case NK_Identifier: {
         int off = sym_lookup(cg, node->value, NULL);
-        if (off >= 0)
+        if (off >= 0) {
             emit(cg, "    mov rax, [rbp - %d]\n", off);
+        } else {
+            fprintf(stderr, "codegen: unknown symbol %s\n",
+                    node->value ? node->value : "<null>");
+            exit(1);
+        }
         break;
     }
     case NK_Unary:
@@ -243,8 +248,13 @@ static void gen_expr(Codegen *cg, Node *node) {
         gen_expr(cg, node->right);
         if (node->left && node->left->kind == NK_Identifier) {
             int off = sym_lookup(cg, node->left->value, NULL);
-            if (off >= 0)
+            if (off >= 0) {
                 emit(cg, "    mov [rbp - %d], rax\n", off);
+            } else {
+                fprintf(stderr, "codegen: unknown symbol %s\n",
+                        node->left->value ? node->left->value : "<null>");
+                exit(1);
+            }
         }
         break;
     case NK_Binary:
@@ -373,8 +383,13 @@ static void emit_node(Codegen *cg, Node *node, bool *has_exit) {
     case NK_AssignStmt: {
         gen_expr(cg, node->right);
         int off = sym_lookup(cg, node->value, NULL);
-        if (off >= 0)
+        if (off >= 0) {
             emit(cg, "    mov [rbp - %d], rax\n", off);
+        } else {
+            fprintf(stderr, "codegen: unknown symbol %s\n",
+                    node->value ? node->value : "<null>");
+            exit(1);
+        }
         break;
     }
     case NK_WriteStmt: {
