@@ -1,51 +1,74 @@
 # hsuScript
 
-hsuScript is a toy compiler written in C.
+[![Build](https://github.com/Mahko-AFK/hsuScript/actions/workflows/build.yml/badge.svg)](https://github.com/Mahko-AFK/hsuScript/actions/workflows/build.yml)
+[![Tests](https://github.com/Mahko-AFK/hsuScript/actions/workflows/tests.yml/badge.svg)](https://github.com/Mahko-AFK/hsuScript/actions/workflows/tests.yml)
 
-## Build
+hsuScript is a small educational compiler written in C that demonstrates the complete pipeline from lexical analysis to runtime execution, aiming to provide an approachable example for developers interested in learning how compilers work and how languages are designed.
 
-Compile the project with:
+## About hsuScript
 
-```bash
-./tools/build.sh
+hsuScript breaks source files into tokens, builds an abstract syntax tree, generates code, and executes the result through a minimal runtime.
+
+```mermaid
+flowchart LR
+    A[Source] --> B[Lexer]
+    B --> C[Parser]
+    C --> D[Codegen]
+    D --> E[Runtime]
 ```
 
-The executable is placed at `build/hsc`. AddressSanitizer build is available via `./tools/build_asan.sh`.
+## Features
 
-## Running
+- Written in portable C
+- Lexer and parser producing an AST
+- Simple code generation and runtime support
+- Scripts with variables, control flow, strings, and arithmetic
+- Comprehensive test suite
 
-Run the compiler on a `.hsc` source file to print tokens and the AST:
+## Project Structure
 
-```bash
-./build/hsc path/to/file.hsc
+```text
+.
+├── lexer.c        # tokenizes source code
+├── parser.c       # builds the AST
+├── codegen.c      # emits code
+├── runtime/       # runtime support library
+├── tests/         # parser and execution tests
+└── tools/         # build and test scripts
 ```
 
-## Language Syntax
+## Quick Start
 
-- Entry point defined as `fn main() { ... }`
-- Variables declared with `let name = value;`
-- Strings use double quotes and can be concatenated with `+`
-- Arithmetic operators: `+`, `-`, `*`, `/`, `%`
-- Conditionals: `if`, `elif`, `else`
-- Loops: `for(init; condition; update) { ... }`
-- Output using `write(expression);`
-
-See `test_cases/` for examples.
+1. Build the compiler:
+   ```bash
+   ./tools/build.sh
+   ```
+2. Compile and run a script:
+   ```bash
+   ./build/hsc path/to/file.hsc
+   ```
 
 ## Testing
 
-Run the parser fixtures with:
+Run parser fixtures:
 
 ```bash
 ./tools/runtests.sh
 ```
 
-Run the full test suite, including executing compiled programs and
-verifying their stdout, with:
+Run the full test suite, including execution checks:
 
 ```bash
 ./tools/run_all_tests.sh
 ```
 
-These scripts build the compiler, check each `.hsc` in `tests/cases`
-against its expected output, and report results to stdout.
+## Contributing
+
+- Fork the repository and create a feature branch
+- Make your changes and run the test suite
+- Submit a pull request describing your work
+
+## License
+
+This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
+
