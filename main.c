@@ -53,7 +53,11 @@ int main(int argc, char *argv[]) {
 
   sem_program(root);
 
-  generate_code(root, "out.s");
+  FILE *outf = fopen("out.s", "w");
+  Codegen *cg = codegen_create(outf);
+  codegen_program(cg, root);
+  codegen_free(cg);
+  fclose(outf);
   free_tree(root);
 
 }
