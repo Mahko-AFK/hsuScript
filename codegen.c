@@ -378,7 +378,8 @@ static void gen_expr(Codegen *cg, Node *node) {
         }
         break;
     default:
-        break;
+        fprintf(stderr, "codegen: unsupported node kind %d\n", node->kind);
+        exit(1);
     }
 }
 
@@ -392,7 +393,7 @@ static void emit_node(Codegen *cg, Node *node, bool *has_exit) {
         scope_pop(cg);
         break;
     case NK_FnDecl: {
-        const char *name = node->value ? node->value : "fn";
+        const char *name = node->value ? node->value : "<null>";
         Node *body = node->children.len > 0 ? node->children.items[0] : NULL;
         int locals = count_locals(body);
         int frame = locals * 8;
@@ -546,12 +547,8 @@ static void emit_node(Codegen *cg, Node *node, bool *has_exit) {
         break;
     }
     default:
-        /* generic traversal */
-        emit_node(cg, node->left, has_exit);
-        emit_node(cg, node->right, has_exit);
-        for (size_t i = 0; i < node->children.len; i++)
-            emit_node(cg, node->children.items[i], has_exit);
-        break;
+        fprintf(stderr, "codegen: unsupported node kind %d\n", node->kind);
+        exit(1);
     }
 }
 
