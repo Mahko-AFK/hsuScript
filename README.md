@@ -7,10 +7,10 @@ hsuScript is a toy compiler written in C.
 Compile the project with:
 
 ```bash
-./build.sh
+./tools/build.sh
 ```
 
-The executable is placed at `build/hsc`. AddressSanitizer build is available via `./build_asan.sh`.
+The executable is placed at `build/hsc`. AddressSanitizer build is available via `./tools/build_asan.sh`.
 
 ## Running
 
@@ -37,7 +37,7 @@ See `test_cases/` for examples.
 Run the parser fixtures with:
 
 ```bash
-./runtests.sh
+./tools/runtests.sh
 ```
 
 The script builds the compiler and checks each `.hsc` in `tests/cases` against its expected `.ast` or `.err` output.
