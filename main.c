@@ -19,15 +19,28 @@ void print_tokens(Token *t) {
 
 int main(int argc, char *argv[]) {
   int ast_only = 0;
+  const char *emit_path = NULL;
   int argi = 1;
 
-  if (argc > argi && strcmp(argv[argi], "--ast-only") == 0) {
-    ast_only = 1;
-    argi++;
+  while (argc > argi) {
+    if (strcmp(argv[argi], "--ast-only") == 0) {
+      ast_only = 1;
+      argi++;
+    } else if (strcmp(argv[argi], "--emit-asm") == 0) {
+      emit_path = "build/out.s";
+      if (argc > argi + 2 && argv[argi + 1][0] != '-') {
+        emit_path = argv[argi + 1];
+        argi += 2;
+      } else {
+        argi++;
+      }
+    } else {
+      break;
+    }
   }
 
   if (argc <= argi) {
-    fprintf(stderr, "Usage: %s [--ast-only] <file>\n", argv[0]);
+    fprintf(stderr, "Usage: %s [--ast-only] [--emit-asm [path]] <file>\n", argv[0]);
     return 1;
   }
 
@@ -40,26 +53,35 @@ int main(int argc, char *argv[]) {
 
   Token *tokens = lexer(file);
 
-  if(!ast_only){
+  if (!ast_only && emit_path == NULL) {
     print_tokens(tokens);
   }
 
   Node *root = parser(tokens);
 
-  printf("Printing AST (Abstract Syntax Tree):\n");
-  print_tree(root, 0);
-
-  fflush(stdout);
+  if (emit_path == NULL) {
+    printf("Printing AST (Abstract Syntax Tree):\n");
+    print_tree(root, 0);
+    fflush(stdout);
+  }
 
   sem_program(root);
 
-  if (!ast_only) {
-    FILE *outf = fopen("out.s", "w");
+  if (emit_path != NULL) {
+    FILE *outf = fopen(emit_path, "w");
+    if (!outf) {
+      fprintf(stderr, "ERROR: Could not open %s for writing\n", emit_path);
+      free_tree(root);
+      return 1;
+    }
     Codegen *cg = codegen_create(outf);
     codegen_program(cg, root);
     codegen_free(cg);
     fclose(outf);
+    free_tree(root);
+    return 0;
   }
+
   free_tree(root);
 
 }
