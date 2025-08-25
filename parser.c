@@ -337,7 +337,6 @@ static Node *parse_expr_or_assign_nosemi(Token **pp) {
     node->op = expr->op;
     node->left = expr->left;
     node->right = expr->right;
-    node->value = strdup(expr->left->value);
     free(expr);
     return node;
   }

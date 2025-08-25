@@ -167,7 +167,7 @@ static void sem_assign(Node *stmt, Scope *scope) {
   if (stmt->left && stmt->left->value)
     name = stmt->left->value;
   else
-    name = stmt->value;
+    sem_error("assignment missing identifier", NULL);
   Type *lhs = scope_lookup(scope, name);
   if (!lhs) sem_error("undeclared identifier", name);
   Type *rhs = sem_expr(stmt->right, scope);
