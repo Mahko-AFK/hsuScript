@@ -37,6 +37,9 @@ void print_tokens(Token *t) {
 int main(int argc, char *argv[]) {
   int ast_only = 0;
   const char *emit_path = NULL;
+  int compile_bin = 0;
+  const char *bin_path = NULL;
+  int run_bin = 0;
   int argi = 1;
 
   while (argc > argi) {
@@ -47,6 +50,15 @@ int main(int argc, char *argv[]) {
       emit_path = "build/out.s";
       if (argc > argi + 2 && argv[argi + 1][0] != '-') {
         emit_path = argv[argi + 1];
+        argi += 2;
+      } else {
+        argi++;
+      }
+    } else if (strcmp(argv[argi], "--compile") == 0) {
+      compile_bin = 1;
+      bin_path = "a.out";
+      if (argc > argi + 1 && argv[argi + 1][0] != '-') {
+        bin_path = argv[argi + 1];
         argi += 2;
       } else {
         argi++;
@@ -67,7 +79,7 @@ int main(int argc, char *argv[]) {
   }
 
   if (argc <= argi) {
-    fprintf(stderr, "Usage: %s [--ast-only] [--emit-asm [path]] <file>\n", argv[0]);
+    fprintf(stderr, "Usage: %s [--ast-only] [--emit-asm [path]] [--compile [output]] <file>\n", argv[0]);
     return 1;
   }
 
@@ -92,10 +104,18 @@ int main(int argc, char *argv[]) {
   Node *root = parser(tokens);
   sem_program(root);
 
-  int run_bin = 0;
-  if (emit_path == NULL) {
+  if (!compile_bin && emit_path == NULL) {
     emit_path = "build/out.s";
+    bin_path = "build/out";
+    compile_bin = 1;
     run_bin = 1;
+  } else {
+    if (emit_path == NULL) {
+      emit_path = "build/out.s";
+    }
+    if (compile_bin && bin_path == NULL) {
+      bin_path = "a.out";
+    }
   }
 
   if (system("mkdir -p build") != 0) {
@@ -115,21 +135,35 @@ int main(int argc, char *argv[]) {
   codegen_program(cg, root);
   codegen_free(cg);
   fclose(outf);
-
   if (dump_runtime("build/rt_tmp.o") != 0) {
     fprintf(stderr, "ERROR: failed to write runtime object\n");
     free_tree(root);
     return 1;
   }
-
-  if (run_bin) {
-    if (system("gcc -Wa,--noexecstack -c build/out.s -o build/out.o") != 0 ||
-        system("gcc build/out.o build/rt_tmp.o -o build/out") != 0) {
-      fprintf(stderr, "ERROR: failed to build binary\n");
+  if (compile_bin) {
+    char cmd[512];
+    snprintf(cmd, sizeof(cmd), "gcc -Wa,--noexecstack -c %s -o build/out.o", emit_path);
+    if (system(cmd) != 0) {
+      fprintf(stderr, "ERROR: failed to assemble output\n");
       free_tree(root);
       return 1;
     }
-    int rc = system("./build/out");
+    snprintf(cmd, sizeof(cmd), "gcc build/out.o build/rt_tmp.o -o %s", bin_path);
+    if (system(cmd) != 0) {
+      fprintf(stderr, "ERROR: failed to link binary\n");
+      free_tree(root);
+      return 1;
+    }
+  }
+
+  if (run_bin) {
+    char cmd[512];
+    if (bin_path[0] == '/' || strncmp(bin_path, "./", 2) == 0) {
+      snprintf(cmd, sizeof(cmd), "%s", bin_path);
+    } else {
+      snprintf(cmd, sizeof(cmd), "./%s", bin_path);
+    }
+    int rc = system(cmd);
     if (rc != -1) {
       rc = WEXITSTATUS(rc);
     }
