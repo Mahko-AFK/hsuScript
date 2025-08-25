@@ -362,8 +362,8 @@ static Node *parse_if_internal(Token **pp, bool consumed_kw) {
   Node *cond = parse_expr(pp, 0);
   expect(pp, CLOSE_PAREN, "expected )");
   Node *then_block = parse_block(pp);
-  node->left = cond;
-  node->right = then_block;
+  vec_push(&node->children, cond);
+  vec_push(&node->children, then_block);
   if (match(pp, ELSE_IF)) {
     Node *elif = parse_if_internal(pp, true);
     vec_push(&node->children, elif);

@@ -443,17 +443,20 @@ static void emit_node(Codegen *cg, Node *node, bool *has_exit) {
         emit_exit(cg, node, has_exit);
         break;
     case NK_IfStmt: {
+        Node *cond = node->children.len > 0 ? node->children.items[0] : NULL;
+        Node *then_block = node->children.len > 1 ? node->children.items[1] : NULL;
+        Node *else_node = node->children.len > 2 ? node->children.items[2] : NULL;
         int l_else = new_label(cg);
         int l_end = new_label(cg);
-        if (node->left)
-            gen_expr(cg, node->left);
+        if (cond)
+            gen_expr(cg, cond);
         emit(cg, "    cmp rax, 0\n    je .L%d\n", l_else);
-        if (node->right)
-            emit_node(cg, node->right, has_exit);
+        if (then_block)
+            emit_node(cg, then_block, has_exit);
         emit(cg, "    jmp .L%d\n", l_end);
         emit(cg, ".L%d:\n", l_else);
-        if (node->children.len > 0)
-            emit_node(cg, node->children.items[0], has_exit);
+        if (else_node)
+            emit_node(cg, else_node, has_exit);
         emit(cg, ".L%d:\n", l_end);
         break;
     }

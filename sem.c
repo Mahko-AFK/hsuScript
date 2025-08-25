@@ -227,13 +227,13 @@ int sem_block(Node *block, Scope *scope) {
 }
 
 static int sem_if(Node *ifnode, Scope *scope) {
-  Node *cond = ifnode->left;
-  Node *then_block = ifnode->right;
+  Node *cond = ifnode->children.len > 0 ? ifnode->children.items[0] : NULL;
+  Node *then_block = ifnode->children.len > 1 ? ifnode->children.items[1] : NULL;
+  Node *else_node = ifnode->children.len > 2 ? ifnode->children.items[2] : NULL;
   if (sem_expr(cond, scope) != type_bool())
     sem_error("if condition must be boolean", NULL);
   int exit_then = sem_block(then_block, scope);
-  if (ifnode->children.len > 0) {
-    Node *else_node = ifnode->children.items[0];
+  if (else_node) {
     int exit_alt;
     if (else_node->kind == NK_IfStmt)
       exit_alt = sem_if(else_node, scope);
